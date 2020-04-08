@@ -122,12 +122,36 @@ class CTRL:
         return np.concatenate([j[0][1:] for j in J], axis = 0)
 
 
+    @CTRL_COMPONENT
+    def RBD_A(self):
+        """
+        This is the Rigid Body Dynamics A matrix
+         DA ddq + C + G = J F
+        """
+        return np.asarray(p.calculateMassMatrix(robot, list(self.state[:GP.QDIMS])))
+
+
+    @CTRL_COMPONENT
+    def RBD_A_inv(self):
+        return np.linalg.inv(self.RBD_A)
+
+
+    @CTRL_COMPONENT
+    def RBD_B(self):
+        """
+        The is the non_linear_effects of the rigid body dynamics
+            DA ddq + RBD_B = torque
+        """
+        return np.array(p.calculateInverseDynamics(robot, list(self.state[:GP.QDIMS]), list(self.state[GP.QDIMS:]), [0.0] * GP.QDIMS))
+
+
     @staticmethod
     def setJointTorques(torque, mask = [1]*4):
         """
         arg torque: A four-element list 
         arg mask:   Whether to control this joint
         """
+        assert(len(torque) == 4)
         for i,ind in enumerate(qind[3:]):
             if(mask[i]):
                 p.setJointMotorControl2(GP.robot,ind,p.POSITION_CONTROL,0,force=0)
