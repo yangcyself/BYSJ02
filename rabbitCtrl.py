@@ -137,7 +137,7 @@ class CTRL:
         represening which toe need the ground contact constraint
             The default case is the contacting point. However, this may not be the case when the foot tries to lift
         """
-        if constant is not None:
+        if constant is None:
             return self.contact_mask
         else:
             return constant
@@ -250,8 +250,11 @@ class CTRL:
         """
         arg torque: A four-element list 
         arg mask:   Whether to control this joint
+        
+        return: the setted torque of all the joints (dim7)
         """
         assert(len(torque) == 4)
+        assert(len(mask) == 4)
         for i,ind in enumerate(qind[3:]):
             if(mask[i]):
                 p.setJointMotorControl2(GP.robot,ind,p.POSITION_CONTROL,0,force=0)
@@ -259,6 +262,7 @@ class CTRL:
                                         jointIndex=ind,
                                         controlMode=p.TORQUE_CONTROL,
                                         force=max(min(torque[i], GP.MAXTORQUE[i+3]),-GP.MAXTORQUE[i+3]))
+        return np.array([0]*3 + list(np.minimum(np.maximum(torque, -GP.MAXTORQUE[3:]), GP.MAXTORQUE[3:]) * np.array(mask)))
 
 
     @staticmethod
@@ -365,8 +369,8 @@ class WBC_CTRL(CTRL):
         """
         J_toe = self.J_toe
         tor = -J_toe.T @ self.WBC
-        self.setJointTorques(tor[3:])
-        return tor
+        return self.setJointTorques(tor[3:])
+        
 
 
 robot=floor=numJoints=None
