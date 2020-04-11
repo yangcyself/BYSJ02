@@ -84,7 +84,8 @@ class CTRL:
         [self._resetflag(k) for k in self.ctrl_flags.keys()]
 
 
-    def step(self,T = 1,sleep=None):
+    def step(self,T = None,sleep=None):
+        T = dt if T is None else T
         for i in range(int(T/dt+0.5)):
             # Call all regested control components
             self.resetFlags()
@@ -201,6 +202,9 @@ class CTRL:
             [ 0, 0, - dq1l*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - dr*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - L3*dq2l*cos(q1l + q2l + r),                                                                                                                            0,                                                                                    0, - dq1l*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - dr*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - L3*dq2l*cos(q1l + q2l + r), - L3*dq1l*cos(q1l + q2l + r) - L3*dq2l*cos(q1l + q2l + r) - L3*dr*cos(q1l + q2l + r)]
                        ])
 
+    @CTRL_COMPONENT
+    def J_gc_bar(self):
+        return self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam
 
     @CTRL_COMPONENT
     def gc_N(self):
@@ -209,8 +213,7 @@ class CTRL:
             gc_N = (I - J^T J_bar^T)
             where J_bar = A^{-1} J^T Lambda
         """
-        J_gc_bar =  self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam
-        return np.eye(GP.QDIMS) - self.J_gc.T @ J_gc_bar.T
+        return np.eye(GP.QDIMS) - self.J_gc.T @ self.J_gc_bar.T
 
 
     @CTRL_COMPONENT

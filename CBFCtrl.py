@@ -13,6 +13,7 @@ class CBF_CTRL(CTRL):
         self.HA = None
         self.Hb = None
         self.Hc = None
+        self._v = False  # a public verbose flag, for convinence
         CBF_CTRL.CBF_CLF_QP.reg(self)
 
     @property # use property because I don't what to cache them
@@ -84,9 +85,9 @@ class CBF_CTRL(CTRL):
             return 2*u
 
         (dB_b, dB_c) = self.dBF
- 
+
         def CBF_cons(u):
-            return mc * (dB_b @ u +  dB_c) - self.BF
+            return mc * (dB_b @ u +  dB_c) + self.BF
         def CBF_cons_jac(u):
             return mc * dB_b
 
@@ -97,9 +98,8 @@ class CBF_CTRL(CTRL):
 
         bounds = np.concatenate([-GP.MAXTORQUE[:,None],GP.MAXTORQUE[:,None]],axis = 1)
 
-        print(len(x0),bounds.shape)
 
-        options = {"maxiter" : 500, "disp"    : True}
+        options = {"maxiter" : 500, "disp"    : self._v}
         res = minimize(obj, x0, bounds=bounds,options = options,jac=obj_jac,
                     constraints=constraints, method =  'SLSQP') # 'trust-constr' , "SLSQP"
         # assert(cbf(res.x)>-1e-9)
@@ -107,7 +107,10 @@ class CBF_CTRL(CTRL):
         if(not CBF_cons(res_x)>-1e-9):
             # badpoints.append(state)
             print("bad CBF: ", CBF_cons(res_x))
-        print(CBF_cons(res_x))
+            print(CBF_cons(res_x))
+        if(self._v):
+            print("Torque:", res_x)
+            print("Fr:", self.J_gc_bar.T @ res_x)
         return self.setJointTorques(res_x[3:])
     
 
