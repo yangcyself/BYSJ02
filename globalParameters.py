@@ -7,7 +7,7 @@ robot = None
 floor = None
 numJoints = None
 
-MAXTORQUE = np.array([0,0,0,100,100,100,100])
+MAXTORQUE = np.array([0,0,0,500,500,500,500])
 
 class qind_t:
     def __init__(self):

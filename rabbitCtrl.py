@@ -217,7 +217,6 @@ class CTRL:
     def DA(self):
         """
         This is the dynamics of the robot under Holonomic constraint of the ground
-            # DA dx + Dg = DB torque
             dx = DA x + DB torque + Dg
             where x = [q,dq] 
 
