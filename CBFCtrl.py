@@ -10,11 +10,28 @@ class CBF_CTRL(CTRL):
 
     def __init__(self):
         super().__init__()
-        self.HA = None
-        self.Hb = None
-        self.Hc = None
+        self.HA = []
+        self.Hb = []
+        self.Hc = []
+        self.Hw = []
+        self.HisCBF = [] # Ture for CBF and False for CLF
         self._v = False  # a public verbose flag, for convinence
         CBF_CTRL.CBF_CLF_QP.reg(self)
+
+    def addCBF(self, A,b,c, w = 1):
+        self.HA.append(A)
+        self.Hb.append(b)
+        self.Hc.append(c)
+        self.Hw.append(w)
+        self.HisCBF.append(True)
+    
+    def addCLF(self, A,b,c, w = 1):
+        self.HA.append(A)
+        self.Hb.append(b)
+        self.Hc.append(c)
+        self.Hw.append(w)
+        self.HisCBF.append(False)
+    
 
     @property # use property because I don't what to cache them
     def Hx(self):
@@ -53,45 +70,54 @@ class CBF_CTRL(CTRL):
 
 
     @CTRL_COMPONENT
-    def BF(self): 
+    def HF(self): 
         """
         (self.HA, self.Hb, self.Hc, self.Hx) -> h(x)
+        use a list comprehension to calculate the each function (can be CBF or CLF)
         """
-        return self.Hx.T @ self.HA @ self.Hx + self.Hb @ self.Hx + self.Hc
+        return [self.Hx.T @ A @ self.Hx + b @ self.Hx + c
+                for A,b,c in zip(self.HA,self.Hb,self.Hc)]
 
 
     @CTRL_COMPONENT
-    def dBF(self): 
+    def dHF(self): 
         """
         The vector and constant that forms the time derivative of BF 
             dBF = dB_b @ u + dB_c
         (self.HA, self.Hb, self.Hc, self.Hx, self.DHA, self.DHB) -> (dB_b, dB_c)
+        use a list comprehension to calculate the each function (can be CBF or CLF)
         """
-        dB_b = (2 * self.Hx.T @ self.HA + self.Hb.T) @ self.DHB  
-        dB_c = (2 * self.Hx.T @ self.HA + self.Hb.T)@(self.DHA @ self.Hx + self.DHg)
-        return (dB_b, dB_c)
+        # dB_b = (2 * self.Hx.T @ self.HA + self.Hb.T) @ self.DHB  
+        # dB_c = (2 * self.Hx.T @ self.HA + self.Hb.T)@(self.DHA @ self.Hx + self.DHg)
+        return [( (2 * self.Hx.T @ A + b) @ self.DHB  ,# dB_b,
+                (2 * self.Hx.T @ A + b)@(self.DHA @ self.Hx + self.DHg)) 
+                for A,b,c in zip(self.HA,self.Hb,self.Hc)]
 
 
     @CTRL_COMPONENT
-    def CBF_CLF_QP(self, mc=1):
+    def CBF_CLF_QP(self, mc_b = 1, ml = 0.00001):
         """
-        ((self.BF,self.dBF), self.CLF) -> setJointTorques()
+        ((self.BF,self.dBF), (self.CF, self.dCF), self.HisCBF) -> setJointTorques()
         args mc: gamma
+        args ml: lambda weight for normalization term in obj_func
         """
+
 
         def obj(u):
-            return u.T@u
+            return ml * u.T@u + sum([ max(0, w * (dL_b @ u + dL_c + LF))
+                                for (LF,(dL_b, dL_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if not isB])
         def obj_jac(u):
-            return 2*u
+            return ml * 2*u + sum([  w * dL_b * (dL_b @ u + dL_c + LF > 0)
+                                for (LF,(dL_b, dL_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if not isB])
 
-        (dB_b, dB_c) = self.dBF
+    
+        def CBF_cons_gen(dB_b,dB_c,BF):
+            return lambda u: mc_b * (dB_b @ u +  dB_c) + BF
+        def CBF_cons_jac_gen(dB_b,dB_c):
+            return lambda u: mc_b * dB_b
 
-        def CBF_cons(u):
-            return mc * (dB_b @ u +  dB_c) + self.BF
-        def CBF_cons_jac(u):
-            return mc * dB_b
-
-        constraints = {'type':'ineq','fun': CBF_cons, "jac":CBF_cons_jac }
+        constraints = [{'type':'ineq','fun': CBF_cons_gen(dB_b,dB_c,BF), "jac":CBF_cons_jac_gen(dB_b,dB_c) }
+                        for (BF,(dB_b, dB_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if isB]
 
         x0 = np.random.random(7)
         # x0 = np.ones(2)
@@ -104,26 +130,13 @@ class CBF_CTRL(CTRL):
                     constraints=constraints, method =  'SLSQP') # 'trust-constr' , "SLSQP"
         # assert(cbf(res.x)>-1e-9)
         res_x = np.nan_to_num(res.x,0)
-        if(not CBF_cons(res_x)>-1e-9):
-            # badpoints.append(state)
-            print("bad CBF: ", CBF_cons(res_x))
-            print(CBF_cons(res_x))
+        # if(not CBF_cons(res_x)>-1e-9):
+        #     # badpoints.append(state)
+        #     print("bad CBF: ", CBF_cons(res_x))
+        #     print(CBF_cons(res_x))
         if(self._v):
             print("Torque:", res_x)
             print("Fr:", self.J_gc_bar.T @ res_x)
         return self.setJointTorques(res_x[3:])
     
 
-if __name__ == "__main__":
-    CBF_CTRL.restart()
-    ct = CBF_CTRL()
-    # The hand designed CBF for torso position
-    mc = 1
-    ct.HA = np.zeros((14,14))
-    ct.HA[1,1] = mc
-    ct.HA[1,8] = ct.HA[8,1] = 1
-
-    ct.Hb = np.zeros(14)
-    ct.Hc = -mc * 0.5 * 0.5
-
-    ct.step(10)

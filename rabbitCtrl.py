@@ -74,7 +74,7 @@ class CTRL:
         self.t = 0
     
         self.resetFlags()
-        
+        self.callbacks = []
 
     def _resetflag(self,k):
         self.ctrl_flags[k] = False
@@ -97,6 +97,10 @@ class CTRL:
             else:
                 time.sleep(dt)
             self.t += dt
+
+            callres = [c(self) for c in self.callbacks]
+            if(any(callres)): # use the call backs as break point checkers
+                return callres
         return None
 
     @CTRL_COMPONENT
@@ -377,8 +381,9 @@ class WBC_CTRL(CTRL):
 
 robot=floor=numJoints=None
 dt = 1e-3
-# physicsClient = p.connect(p.DIRECT)
-physicsClient = p.connect(p.GUI)
+
+physicsClient = p.connect(p.GUI) if (GP.GUIVIS) else p.connect(p.DIRECT)
+
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
 #p.setRealTimeSimulation(True)
 p.setGravity(0, 0, GRAVITY)

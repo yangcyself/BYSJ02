@@ -1,5 +1,12 @@
 import numpy as np
 
+
+## Experiment settings
+
+GUIVIS = True
+
+## common definitions
+
 QDIMS = 7
 
 robot = None
