@@ -1,7 +1,7 @@
 """
 The controller whose lowest part is a CBF(-CLF)-QP
 """
-from rabbitCtrl import *
+from ctrl.rabbitCtrl import *
 import autograd.numpy as np
 from scipy.optimize import minimize
 

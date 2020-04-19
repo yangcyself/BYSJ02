@@ -9,7 +9,7 @@ Test the Rigid Body dynamics of the controller
 """
 import sys
 sys.path.append(".")
-from rabbitCtrl import *
+from ctrl.rabbitCtrl import *
 
 if __name__ == "__main__":
     CTRL.restart()

@@ -6,7 +6,7 @@ However, this is not very accurate, But the error may be caused by the PD in the
 
 import sys
 sys.path.append(".")
-from rabbitCtrl import *
+from ctrl.WBCCtrl import *
 
 if __name__ == "__main__":
     CTRL.restart()

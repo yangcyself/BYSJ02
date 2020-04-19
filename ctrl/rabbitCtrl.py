@@ -1,5 +1,7 @@
 """
 The controller of a rabbit pybullet environment, providing functions like restart, set state, and run controller
+
+The controllers in the 
 """
 
 import pybullet as p
@@ -50,8 +52,9 @@ class CTRL_COMPONENT:
     def resetFunc(self,obj,func):
         assert (self.name == func.__name__ or not
             "reset function should have the same name as the old one")
-
         self.func = func
+
+
 class CTRL:
     """
         The framework of the controller is highly pythonic
@@ -331,52 +334,6 @@ class CTRL:
 
 
 
-class WBC_CTRL(CTRL):
-
-    def __init__(self):
-        super().__init__()    
-        WBC_CTRL.WBC.reg(self,kp = np.array([50,50,50]))
-        WBC_CTRL.cmdFr.reg(self)
-
-    torso_des = np.array([0,0.8,0.5])
-
-    @CTRL_COMPONENT
-    def WBC(self, kp = np.array([5,5,5]), kd = np.array([0.2, 0.2, 0.2])):
-        """
-            Run a simple WBC control
-            self.torso_des -> torque
-        """
-        torso_des = self.torso_des
-        torso_state = self.state[:3]
-        dtorso_state = self.state[7:7+3]
-        
-        # Note that currently the gc_pos have an error of 0.3 caused by the sphere of the toe
-        gc_pos = self.CoMs[[3,6]] - self.CoMs[[0]]
-
-        wrench_des = kp * (torso_des - torso_state) - kd * dtorso_state
-        wrench_des += [0, -GRAVITY * 32, 0]
-
-        Nsupport = 2
-        Gmap = np.concatenate([np.tile(np.eye(2),(1,Nsupport)),
-            np.cross(np.tile(gc_pos,(1,2)).reshape(-1,2),
-                    np.tile(np.eye(2),(Nsupport,1)),axis = 1)[None,...]],axis = 0)
-        
-
-        Fr = np.linalg.pinv(Gmap) @ wrench_des
-        return Fr
-        # Fr = torso_des
-
-    @CTRL_COMPONENT
-    def cmdFr(self):
-        """
-        self.WBC -> setJointTorques()
-        
-        Excert the desFr from WBC
-        """
-        J_toe = self.J_toe
-        tor = -J_toe.T @ self.WBC
-        return self.setJointTorques(tor[3:])
-        
 
 
 robot=floor=numJoints=None
@@ -389,8 +346,3 @@ p.setAdditionalSearchPath(pybullet_data.getDataPath())
 p.setGravity(0, 0, GRAVITY)
 p.setTimeStep(dt)
 
-
-if __name__ == "__main__":
-    CTRL.restart()
-    ct = WBC_CTRL()
-    ct.step(10)

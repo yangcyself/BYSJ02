@@ -4,7 +4,7 @@ Test and exhibit the framework of the CBF controller, the CBF is a quad form con
 
 import sys
 sys.path.append(".")
-from CBFCtrl import *
+from ctrl.CBFCtrl import *
 from util.visulization import QuadContour
 import matplotlib.pyplot as plt
 
