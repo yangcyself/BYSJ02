@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     ct.callbacks.append(callback_traj)
 
-    time.sleep(10)
+    # time.sleep(10)
     ct.step(10,sleep=0)
 
 

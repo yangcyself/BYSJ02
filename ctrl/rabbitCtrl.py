@@ -192,7 +192,7 @@ class CTRL:
 
 
     @CTRL_COMPONENT
-    def dJ_gc(self):
+    def dJ_toe(self):
         """
             Time derivative of J_gc
         """
@@ -209,9 +209,19 @@ class CTRL:
             [ 0, 0, - dq1l*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - dr*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - L3*dq2l*cos(q1l + q2l + r),                                                                                                                            0,                                                                                    0, - dq1l*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - dr*(L2*cos(q1l + r) + L3*cos(q1l + q2l + r)) - L3*dq2l*cos(q1l + q2l + r), - L3*dq1l*cos(q1l + q2l + r) - L3*dq2l*cos(q1l + q2l + r) - L3*dr*cos(q1l + q2l + r)]
                        ])
 
+
+    @property
+    def dJ_gc(self):
+        """
+        The jacobian of the toes that are gc
+        """
+        return self.dJ_toe[(np.ones((2,2)).astype(bool) * self.gc_mask).T.reshape(-1), ...]
+
+
     @CTRL_COMPONENT
     def J_gc_bar(self):
         return self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam
+
 
     @CTRL_COMPONENT
     def gc_N(self):
