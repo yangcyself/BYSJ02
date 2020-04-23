@@ -13,7 +13,7 @@ import time
 from globalParameters import qind
 import numpy as np
 import inspect
-GRAVITY = -9.8
+
 
 
 class CTRL_COMPONENT:
@@ -319,7 +319,7 @@ class CTRL:
         global floor,robot,numJoints
         robot=floor=numJoints=None
         p.resetSimulation()
-        p.setGravity(0,0,GRAVITY)
+        p.setGravity(0,0,GP.GRAVITY)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         floor = p.loadURDF("plane.urdf")
 
@@ -369,5 +369,5 @@ if GP.STARTSIMULATION:
 
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     #p.setRealTimeSimulation(True)
-    p.setGravity(0, 0, GRAVITY)
+    p.setGravity(0, 0, GP.GRAVITY)
     p.setTimeStep(dt)
