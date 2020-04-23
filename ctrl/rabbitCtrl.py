@@ -326,7 +326,7 @@ class CTRL:
         # robotStartPos = [0, 0, -2+0.63]
         robotStartPos = [0, 0, 0]
         robotStartOrientation = p.getQuaternionFromEuler([0., 0, 0])
-        robot = p.loadURDF("five_link_walker.urdf",robotStartPos,robotStartOrientation)
+        robot = p.loadURDF(GP.URDF_FILE, robotStartPos,robotStartOrientation)
 
         numJoints = p.getNumJoints(robot)
         GP.robot, GP.floor, GP.numJoints = robot, floor, numJoints

@@ -37,7 +37,7 @@ class WBC_CTRL(CTRL):
         Nsupport = sum(self.gc_mask)
         if(Nsupport):
             Gmap = np.concatenate([np.tile(np.eye(2),(1,Nsupport)),
-                np.cross(np.tile(gc_pos,(1,2)).reshape(-1,2),
+                GP.CROSS_SIGN * np.cross(np.tile(gc_pos,(1,2)).reshape(-1,2),
                         np.tile(np.eye(2),(Nsupport,1)),axis = 1)[None,...]],axis = 0)
         else:
             Gmap = None

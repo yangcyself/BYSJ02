@@ -9,7 +9,13 @@ GUIVIS = True # whether open GUI
 
 DT = 1e-3
 
+# URDF_FILE = "five_link_walker_yz.urdf"
+# PRISMA_AXIS = np.array([1,2])
+# CROSS_SIGN = 1
+
+URDF_FILE = "five_link_walker_xz.urdf"
 PRISMA_AXIS = np.array([0,2])
+CROSS_SIGN = -1
 
 ## common definitions
 
