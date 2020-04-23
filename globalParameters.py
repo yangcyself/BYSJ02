@@ -3,7 +3,9 @@ import numpy as np
 
 ## Experiment settings
 
-GUIVIS = True
+STARTSIMULATION = True # whether start the pybullet simulation
+
+GUIVIS = True # whether open GUI
 
 ## common definitions
 
@@ -29,25 +31,25 @@ class qind_t:
         return self.ind[i]
 
     @property
-    def x():
+    def x(self):
         return 0
     @property
-    def y():
+    def y(self):
         return 1
     @property
-    def r():
+    def r(self):
         return 2
     @property
-    def q1_r():
+    def q1_r(self):
         return 3
     @property
-    def q2_r():
+    def q2_r(self):
         return 4
     @property
-    def q1_l():
+    def q1_l(self):
         return 6
     @property
-    def q2_l():
+    def q2_l(self):
         return 7
             
 qind = qind_t()

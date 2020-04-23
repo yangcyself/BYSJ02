@@ -23,22 +23,26 @@ class IOLinearCTRL(CTRL):
             And the Y_c, dY_c, ddY_c are commands calculated by IOcmd.
     """
 
+
     def __init__(self):
         super().__init__()
         self.VC_H = np.concatenate([np.zeros((4,3)), np.eye(4)], axis=1)
-        self.step_t = 1
+        self. theta_minus =  -0.5
+        self. theta_plus = 0.5
         IOLinearCTRL.IOLin.reg(self)
 
 
     @CTRL_COMPONENT
     def VC_c(self):
         """
-        (s, phase_len)
+        (tau, s, ds, phase_len)
             s: The clock variable of the virtual constraint from one to zero
             Phase_len: The total time for the phase to go from 0 to 1, used to calculate the dt and ddt
                 Here I use the x-axis of the robot
         """
-        return self.state[0], self.step_t
+        step_t = self.theta_minus - self.theta_plus
+        tau = (self.state[0] - self.theta_plus) / (self.theta_minus - self.theta_plus)
+        return tau, self.state[0], self.state[7], step_t
     
 
     @CTRL_COMPONENT
@@ -49,23 +53,24 @@ class IOLinearCTRL(CTRL):
         """
         # phi(k) + alpha(k,m+1)*factorial(M)/(factorial(m)*factorial(M-m))*s^m*(1-s)^(M-m);
         K,M = Balpha.shape # K: The number of the virtual constraint, M: the order
-        s, phase_len = self.VC_c
+        M = M-1
+        tau, s, ds, phase_len = self.VC_c
         phi = np.sum(
-            [s**m * (1-s)**(M-m) * 
-                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M)], 
+            [tau**m * (1-tau)**(M-m) * 
+                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
             axis = 0)
 
         dphidc = np.sum(
-            [m * s**(m-1) * (1-s)**(M-m) * 
-                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M)], 
+            [(m * tau**(m-1) * (1-tau)**(M-m) - (M-m)*(1-tau)**(M-m-1) * tau**m ) * 
+                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
             axis = 0) / phase_len
 
         ddphiddc = np.sum(
-            [(m * (m-1) * s**(m-2) * (1-s)**(M-m) - 2*(M-m) * m * s**(m-1) * (1-s)**(M-m-1) + (M-m) * (M-m-1) * s**m * (1-s)**(M-m-2))* 
-                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M)], 
+            [(m * (m-1) * tau**(m-2) * (1-tau)**(M-m) - 2*(M-m) * m * tau**(m-1) * (1-tau)**(M-m-1) + (M-m) * (M-m-1) * tau**m * (1-tau)**(M-m-2))* 
+                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
             axis = 0) / (phase_len ** 2)
-        
-        return phi, dphidc, ddphiddc
+
+        return phi, dphidc * ds, ddphiddc * ds**2 *0 ### NOTE disable the feedforward of the acc of the gait
 
 
     @CTRL_COMPONENT
@@ -83,7 +88,7 @@ class IOLinearCTRL(CTRL):
         DB = self.DB[:,3:]
         try:
             u = np.linalg.inv(self.VC_H @ (self.DA @ DB)[:GP.QDIMS,:]) @ (ddYC + fw)
-        except np.LinAlgError as ex:
+        except np.linalg.LinAlgError as ex:
             if("Singular matrix" not in str(ex)):
                 raise(ex)
             u = np.linalg.pinv(self.VC_H @ (self.DA @ DB)[:GP.QDIMS,:]) @ (ddYC + fw)

@@ -4,11 +4,12 @@ The controller of a rabbit pybullet environment, providing functions like restar
 The controllers in the 
 """
 
-import pybullet as p
-import pybullet_data 
+import globalParameters as GP
+if GP.STARTSIMULATION:
+    import pybullet as p
+    import pybullet_data 
 import os
 import time
-import globalParameters as GP
 from globalParameters import qind
 import numpy as np
 import inspect
@@ -22,7 +23,7 @@ class CTRL_COMPONENT:
         self.funcsig = [x.name for x in inspect.signature(self.func).parameters.values()]
 
     def __set__(self):
-        raise ValueError("The control variable cannot be set")
+        raise ValueError("The control variable cannot be set implicitly, use method `set`")
 
     def __get__(self, obj, klass):
         if obj is None:
@@ -48,6 +49,15 @@ class CTRL_COMPONENT:
         assert (all([k in self.funcsig for k in kwargs.keys()]) or not 
             "argument not declared in control component %s"%self.func.__name__)
         obj.ctrl_param[self.name] = kwargs
+
+
+    def set(self, obj, value):
+        """
+            directly set the value instead of calculate it
+        """
+        obj.ctrl_value[self.name] = value
+        obj.ctrl_flags[self.name] = True
+
 
     def resetFunc(self,obj,func):
         assert (self.name == func.__name__ or not
@@ -109,8 +119,12 @@ class CTRL:
     @CTRL_COMPONENT
     def state(self):
         # return the current state in the format of [q, dq]
-        return np.array([s[:2] for s in p.getJointStates(GP.robot,list(qind))]).T.reshape(-1)
-    
+        x =  np.array([s[:2] for s in p.getJointStates(GP.robot,list(qind))]).T.reshape(-1)
+        # normalize the state making the q1_r,q1_l be in the range of 0~2pi, r, q2_r q2_l be in the range -pi~pi
+        x[[2, 4, 6]] = x[[2, 4, 6]] - ((x[[2, 4, 6]] + np.math.pi)//(2*np.math.pi))*(2*np.math.pi)
+        x[[3, 5]] = x[[3, 5]] % (2*np.math.pi)
+        return x
+
     @CTRL_COMPONENT
     def CoMs(self):
         # return the Center of Mass of the links in the global frame
@@ -346,13 +360,14 @@ class CTRL:
 
 
 
-robot=floor=numJoints=None
 dt = 1e-3
+if GP.STARTSIMULATION:
 
-physicsClient = p.connect(p.GUI) if (GP.GUIVIS) else p.connect(p.DIRECT)
+    robot=floor=numJoints=None
 
-p.setAdditionalSearchPath(pybullet_data.getDataPath())
-#p.setRealTimeSimulation(True)
-p.setGravity(0, 0, GRAVITY)
-p.setTimeStep(dt)
+    physicsClient = p.connect(p.GUI) if (GP.GUIVIS) else p.connect(p.DIRECT)
 
+    p.setAdditionalSearchPath(pybullet_data.getDataPath())
+    #p.setRealTimeSimulation(True)
+    p.setGravity(0, 0, GRAVITY)
+    p.setTimeStep(dt)
