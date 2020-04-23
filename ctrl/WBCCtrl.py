@@ -16,10 +16,10 @@ class WBC_CTRL(CTRL):
         super().__init__()    
         WBC_CTRL.WBC.reg(self,kp = np.array([50,50,50]))
         WBC_CTRL.cmdFr.reg(self)
-        self.torso_des = np.array([0,0.8,0])
+        self.torso_des = np.array([0,0.8,0.5])
 
     @CTRL_COMPONENT
-    def WBC(self, kp = np.array([5000,5000,5000]), kd = np.array([20, 20, 20])):
+    def WBC(self, kp = np.array([50,50,50]), kd = np.array([20, 20, 20])):
         """
             Run a simple WBC control
             self.torso_des -> (Nsupport, Gmap, wrench_des, )
@@ -77,8 +77,7 @@ class QP_WBC_CTRL(WBC_CTRL):
 
     def __init__(self):
         super().__init__()    
-        QP_WBC_CTRL.WBC.reg(self,kp = np.array([50,50,50]))
-        WBC_CTRL.cmdFr.reg(self)
+        QP_WBC_CTRL.WBC_FR.reg(self)
 
     @CTRL_COMPONENT
     def WBC_FR(self, cpw=[10,10,1],cplm = 0.001,mu = 0.4):
