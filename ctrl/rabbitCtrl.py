@@ -130,7 +130,7 @@ class CTRL:
         # return the Center of Mass of the links in the global frame
         #   [body, right_thigh, right_shin, right_toe, left_thign, left_shin, left_toe], body is ind 2
         linkInd = np.arange(2,9)
-        return np.array([s[0][1:] for s in p.getLinkStates(GP.robot,linkInd)])
+        return np.array([np.array(s[0])[GP.PRISMA_AXIS] for s in p.getLinkStates(GP.robot,linkInd)])
 
 
     @CTRL_COMPONENT
@@ -142,7 +142,7 @@ class CTRL:
             [0 for a in range(7)]) # desired joint accelerations
         for i in [5,8]] # calculates the linear jacobian and the angular jacobian
         # Each element of J is tuple (J_x, J_r), the jacobian of transition and rotation
-        return np.concatenate([j[0][1:] for j in J], axis = 0)
+        return np.concatenate([np.array(j[0])[GP.PRISMA_AXIS] for j in J], axis = 0)
 
 
     @CTRL_COMPONENT
@@ -360,7 +360,7 @@ class CTRL:
 
 
 
-dt = 1e-3
+dt = GP.DT
 if GP.STARTSIMULATION:
 
     robot=floor=numJoints=None

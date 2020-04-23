@@ -7,6 +7,10 @@ STARTSIMULATION = True # whether start the pybullet simulation
 
 GUIVIS = True # whether open GUI
 
+DT = 1e-3
+
+PRISMA_AXIS = np.array([0,2])
+
 ## common definitions
 
 QDIMS = 7
