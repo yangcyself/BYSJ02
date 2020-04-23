@@ -45,7 +45,7 @@ class CTRL_COMPONENT:
             Note, modules still can be called even if it is not registered. 
             This function is only used to change the default parameters
         """
-        obj.ctrl_components.append(self)
+        obj.ctrl_components[self.name]=self # use dict because the registor might want to remove the prvious regested component
         assert (all([k in self.funcsig for k in kwargs.keys()]) or not 
             "argument not declared in control component %s"%self.func.__name__)
         obj.ctrl_param[self.name] = kwargs
@@ -80,7 +80,7 @@ class CTRL:
     """
 
     def __init__(self):
-        self.ctrl_components = []
+        self.ctrl_components = {}
         self.ctrl_flags = {}
         self.ctrl_param = {}
         self.ctrl_value = {}
@@ -102,7 +102,7 @@ class CTRL:
         for i in range(int(T/dt+0.5)):
             # Call all regested control components
             self.resetFlags()
-            [c(self) for c in self.ctrl_components]    
+            [c(self) for c in self.ctrl_components.values()]    
 
             p.stepSimulation()
             if(sleep is not None):

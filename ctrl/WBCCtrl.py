@@ -32,7 +32,7 @@ class WBC_CTRL(CTRL):
         gc_pos = self.CoMs[[3,6]] - self.CoMs[[0]]
 
         wrench_des = kp * (torso_des - torso_state) - kd * dtorso_state
-        wrench_des += [0, -GRAVITY * 32, 0]
+        wrench_des += [0, -GP.GRAVITY * 32, 0]
 
         Nsupport = 2
         Gmap = np.concatenate([np.tile(np.eye(2),(1,Nsupport)),
@@ -57,7 +57,12 @@ class WBC_CTRL(CTRL):
         
 
 class QP_WBC_CTRL(WBC_CTRL):
-    
+
+    def __init__(self):
+        super().__init__()    
+        QP_WBC_CTRL.WBC.reg(self,kp = np.array([50,50,50]))
+        WBC_CTRL.cmdFr.reg(self)
+
     @CTRL_COMPONENT
     def WBC(self, kp = np.array([5,5,5]), kd = np.array([0.2, 0.2, 0.2]), cpw=[10,10,1],cplm = 0.001,mu = 0.4):
 
@@ -69,7 +74,7 @@ class QP_WBC_CTRL(WBC_CTRL):
         gc_pos = self.CoMs[[3,6]] - self.CoMs[[0]]
 
         wrench_des = kp * (torso_des - torso_state) - kd * dtorso_state
-        wrench_des += [0, -GRAVITY * 32, 0]
+        wrench_des += [0, -GP.GRAVITY * 32, 0]
 
         Nsupport = sum(self.gc_mask)
         Gmap = np.concatenate([np.tile(np.eye(2),(1,Nsupport)),
@@ -98,8 +103,3 @@ class QP_WBC_CTRL(WBC_CTRL):
         prob.solve(verbose=False)
         Fc = cpFc.value
         return Fc
-
-if __name__ == "__main__":
-    CTRL.restart()
-    ct = QP_WBC_CTRL()
-    ct.step(10)
