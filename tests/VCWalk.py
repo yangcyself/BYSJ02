@@ -19,11 +19,7 @@ Balpha =  np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 IOLinearCTRL.IOcmd.reg(ct,Balpha = Balpha)
-IOLinearCTRL.IOLin.reg(ct,kp = 10000, kd = 200)
-
-ct.step_t = 0.1576
-ct.theta_minus =  0.0779
-ct.theta_plus = -0.0797
+IOLinearCTRL.IOLin.reg(ct,kp = 1000, kd = 50)
 
 Traj = []
 def callback_traj(obj):
@@ -39,6 +35,7 @@ def callback_plot(dim = 0):
 ct.callbacks.append(callback_traj)
 
 def reset():
+    ct.resetStatic()
     ct.setState([
     -0.0796848040543580,
     0.795256332708201,
@@ -61,4 +58,4 @@ reset()
 
 if __name__ == "__main__":
     
-    ct.step(10,sleep=0)
+    ct.step(5)

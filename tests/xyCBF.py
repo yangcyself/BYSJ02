@@ -40,20 +40,6 @@ if __name__ == "__main__":
     Hc = ang*ang
     ct.addCLF(HA,Hb,Hc)
 
-    # tmpA = np.zeros((14,14))
-    # ## Add CLF to zero of the x_body
-    # tmpA[0,0] = 10
-    # tmpA[7,7] = mc2 * mc2
-    # tmpA[7,0] = tmpA[0,7] = 10 * mc2
-    # ct.HA.append(tmpA)
-    # ct.Hb.append(np.zeros(14))
-    # ct.Hc.append(0)
-
-    # # print("ct.HA",ct.HA)
-    # # print("ct.Hb",ct.Hb)
-    # # print("ct.Hc",ct.Hc)
-
-
     ct.callbacks.append(callback_traj)
 
     # time.sleep(10)

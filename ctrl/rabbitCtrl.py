@@ -81,9 +81,10 @@ class CTRL:
 
     def __init__(self):
         self.ctrl_components = {}
-        self.ctrl_flags = {}
-        self.ctrl_param = {}
-        self.ctrl_value = {}
+        self.ctrl_flags = {}  # whether control components has to refresh their computation
+        self.ctrl_param = {}  # parameters of control components
+        self.ctrl_value = {}  # results of control components
+        self.ctrl_static = {} # static variables in control components
         self.t = 0
     
         self.resetFlags()
@@ -95,6 +96,10 @@ class CTRL:
 
     def resetFlags(self):
         [self._resetflag(k) for k in self.ctrl_flags.keys()]
+
+
+    def resetStatic(self):
+        self.ctrl_static = {}
 
 
     def step(self,T = None,sleep=None):
