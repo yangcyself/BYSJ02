@@ -2,7 +2,6 @@
 The controller whose lowest part is a CBF(-CLF)-QP
 """
 from ctrl.CBFCtrl import *
-import autograd.numpy as np
 from scipy.optimize import minimize
 
 

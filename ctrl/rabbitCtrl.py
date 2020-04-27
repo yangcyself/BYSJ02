@@ -106,19 +106,25 @@ class CTRL:
         T = dt if T is None else T
         for i in range(int(T/dt+0.5)):
             # Call all regested control components
-            self.resetFlags()
-            [c(self) for c in self.ctrl_components.values()]    
+            try:
+                self.resetFlags()
+                [c(self) for c in self.ctrl_components.values()]    
 
-            p.stepSimulation()
-            if(sleep is not None):
-                time.sleep(sleep)
-            else:
-                time.sleep(dt)
-            self.t += dt
-
-            callres = [c(self) for c in self.callbacks]
-            if(any(callres)): # use the call backs as break point checkers
-                return callres
+                p.stepSimulation()
+                if(sleep is not None):
+                    time.sleep(sleep)
+                else:
+                    time.sleep(dt)
+                self.t += dt
+                callres = [c(self) for c in self.callbacks]
+                if(any(callres)): # use the call backs as break point checkers
+                    return callres
+            except KeyboardInterrupt as ex:
+                return [c(self) for c in self.callbacks]
+            except p.error as ex:
+                if("Not connected to physics server" in str(ex)):
+                    return None
+                raise ex
         return None
 
     @CTRL_COMPONENT
