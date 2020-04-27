@@ -127,6 +127,10 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         if(sum(self.gc_mask)>0):
             FrA, Frb = self.FrAB
             constraints += [{'type':'ineq','fun': lambda u: (FrA @ u + Frb)[1], "jac": lambda u: FrA[1,:] }]
+            if(sum(self.gc_mask)==1):
+                constraints += [{'type':'ineq','fun': lambda u: np.array([[-1,GP.MU],[1,GP.MU]]) @ (FrA @ u + Frb), 
+                                            "jac": lambda u: np.array([[-1,GP.MU],[1,GP.MU]]) @ FrA }
+                                            for i in range(0,FrA.shape[0],2)]
 
         x0 = np.random.random(7)
 

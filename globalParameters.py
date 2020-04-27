@@ -17,6 +17,8 @@ URDF_FILE = "five_link_walker_xz.urdf"
 PRISMA_AXIS = np.array([0,2])
 CROSS_SIGN = -1
 
+MU = 0.6
+
 ## common definitions
 
 QDIMS = 7

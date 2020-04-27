@@ -22,7 +22,7 @@ CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = 1000, kd = 50)
 
 # add a CBF controlling The angle from stance leg to torso
-if True: ## CBF of the stance toe
+if 1: ## CBF of the stance toe
     mc = 1000
     # dmth = np.math.pi/18
     dmth = np.math.pi/6
@@ -38,7 +38,7 @@ if True: ## CBF of the stance toe
     Hc_CBF = mc * (dmth **2 - mth0 **2)
     ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
-if True: ## HA_CBF of the swing toe
+if 1: ## HA_CBF of the swing toe
     mc = 1000
     dmth = np.math.pi/6
     mth0 = np.math.pi + dmth/2
