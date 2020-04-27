@@ -271,7 +271,7 @@ class CTRL:
         """
         return np.concatenate([
             np.concatenate([np.zeros((GP.QDIMS,GP.QDIMS)),np.eye(GP.QDIMS)], axis = 1),
-            np.concatenate([np.zeros((GP.QDIMS,GP.QDIMS)), self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam @ self.dJ_gc], axis = 1) # I am not sure to put the dJdq term in DA or DB
+            np.concatenate([np.zeros((GP.QDIMS,GP.QDIMS)), - self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam @ self.dJ_gc], axis = 1) # I am not sure to put the dJdq term in DA or DB
             # np.concatenate([np.zeros((GP.QDIMS,GP.QDIMS)),  np.zeros((GP.QDIMS,GP.QDIMS))], axis = 1) 
         ],axis = 0)
 
