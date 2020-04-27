@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
         ct.setJointTorques(torque[3:])
 
-        ddq = ct.RBD_A_inv @ (torque- ct.RBD_B + ct.J_toe.T @ toeForce[[0,2,3,5]])
+        ddq = ct.RBD_A_inv @ (torque- ct.RBD_B + ct.J_toe.T @ toeForce[list(GP.PRISMA_AXIS)+list(GP.PRISMA_AXIS+3)])
         print("ddq   :", ddq)
 
         p.stepSimulation()

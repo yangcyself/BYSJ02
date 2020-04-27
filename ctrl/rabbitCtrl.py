@@ -202,7 +202,7 @@ class CTRL:
     def RBD_B(self):
         """
         The is the non_linear_effects of the rigid body dynamics
-            RBD_B ddq + RBD_B = torque + J.T F
+            RBD_A ddq + RBD_B = torque + J.T F
         """
         return np.array(p.calculateInverseDynamics(robot, list(self.state[:GP.QDIMS]), list(self.state[GP.QDIMS:]), [0.0] * GP.QDIMS))
 
@@ -269,7 +269,6 @@ class CTRL:
             | M    -J^T | | ddq |  =  | -RBD_B + torque |
             | J      O  | |Gamma|     | - dJdq          |
         """
-        # First we get elements in M ddq = (I-J^T J_bar^T)(torque - RBD_B) - J^T Lambda dJdq
         return np.concatenate([
             np.concatenate([np.zeros((GP.QDIMS,GP.QDIMS)),np.eye(GP.QDIMS)], axis = 1),
             np.concatenate([np.zeros((GP.QDIMS,GP.QDIMS)), self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam @ self.dJ_gc], axis = 1) # I am not sure to put the dJdq term in DA or DB
@@ -287,6 +286,19 @@ class CTRL:
     def Dg(self):
         return np.concatenate([np.zeros(GP.QDIMS),
                 - self.RBD_A_inv @ self.gc_N @ self.RBD_B] , axis = 0) # put J^T Lambda dJ dq here migh be the conventional way
+
+
+    @CTRL_COMPONENT
+    def FrAB(self):
+        """
+        (Fr_A, Fr_b): The reaction force Fr in holonomic constraint given u is: Fr = Fr_A @ u + Fr_b
+
+            The calculation is from the reaction force in gc operation space:
+            Fr = - Jc_bar (g + B u) - Lambda dJ_gc dg  
+        """
+        FrA = - self.J_gc_bar.T @ np.diag([0,0,0,1,1,1,1])
+        Frb = self.J_gc_bar.T @ self.RBD_B - self.gc_Lam @ self.dJ_gc @ self.state[GP.QDIMS:]
+        return (FrA, Frb)
 
 
     @staticmethod

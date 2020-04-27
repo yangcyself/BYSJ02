@@ -63,7 +63,7 @@ if True: ## HA_CBF of the swing toe
 
 Traj = []
 def callback_traj(obj):
-    Traj.append((obj.t, obj.Hx, obj.IOcmd))
+    Traj.append((obj.t, obj.Hx, obj.IOcmd, obj.ResultFr))
 def callback_clear():
     Traj = []
 
@@ -74,7 +74,21 @@ def IOcmd_plot(dim = 0):
     plt.show()
 def CBF_plot(dim = 0):
     plt.plot([t[0] for t in Traj], [t[1][dim+7] for t in Traj], label = "CBF state dim%d"%dim)
+    if(dim == 0):
+        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + np.math.pi/6 for t in Traj], label = "CBF Upper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - np.math.pi/6 for t in Traj], label = "CBF LowerUpper bound%d"%dim)
+    if(dim == 1):
+        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + (np.math.pi/6 + np.math.pi/12 * (1-t[1][9])) for t in Traj], label = "CBF Upper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - (np.math.pi/6 + np.math.pi/12 * (1-t[1][9])) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
     plt.ylim((np.math.pi - 0.6, np.math.pi + 0.6))
+    plt.legend()
+    plt.show()
+
+def Fr_plot():
+    plt.plot([t[0] for t in Traj], [t[3][0] for t in Traj], label = "Fr state x")
+    plt.plot([t[0] for t in Traj], [t[3][1] for t in Traj], label = "Fr state y")
+    plt.plot([t[0] for t in Traj], [0 for t in Traj], label = "0")
+    plt.grid()
     plt.legend()
     plt.show()
 
@@ -107,5 +121,7 @@ reset()
 
 if __name__ == "__main__":
     
-    ct.step(3)
-    CBF_plot()
+    ct.step(5)
+    CBF_plot(dim = 0)
+    CBF_plot(dim = 1)
+    Fr_plot()

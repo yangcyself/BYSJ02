@@ -16,6 +16,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
     def __init__(self):
         super().__init__()
         CBF_WALKER_CTRL.CBF_CLF_QP.reg(self) # This operation will cover the `CBF_CLF_QP` in parent class
+        self.CBF_SUCCESS = True # flag representing the status of CBF
 
 
     @CTRL_COMPONENT
@@ -119,8 +120,13 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         def CBF_cons_jac_gen(dB_b,dB_c):
             return lambda u: mc_b * dB_b
 
+        CBF_CONS = [CBF_cons_gen(dB_b,dB_c,BF) for (BF,(dB_b, dB_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if isB]
         constraints = [{'type':'ineq','fun': CBF_cons_gen(dB_b,dB_c,BF), "jac":CBF_cons_jac_gen(dB_b,dB_c) }
                         for (BF,(dB_b, dB_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if isB]
+
+        if(sum(self.gc_mask)>0):
+            FrA, Frb = self.FrAB
+            constraints += [{'type':'ineq','fun': lambda u: (FrA @ u + Frb)[1], "jac": lambda u: FrA[1,:] }]
 
         x0 = np.random.random(7)
 
@@ -135,6 +141,13 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         #     # badpoints.append(state)
         #     print("bad CBF: ", CBF_cons(res_x))
         #     print(CBF_cons(res_x))
+        
+        # Use a flag to represent the state of optimization
+        self.CBF_SUCCESS = res.success
+        self.ResultFr = FrA @ res_x + Frb if(sum(self.gc_mask)>0) else np.zeros(2)
+        if not self.CBF_SUCCESS:
+            print("Optimization Message:", res.message)
+        # print("CBF Result: ",[c(res_x) for c in CBF_CONS])
         if(self._v):
             print("Torque:", res_x)
             print("Fr:", self.J_gc_bar.T @ res_x)
