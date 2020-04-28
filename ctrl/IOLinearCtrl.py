@@ -78,7 +78,7 @@ class IOLinearCTRL(CTRL):
                 Here I use the x-axis of the robot
         """
         redStance, theta_plus, Labelmap = self.STEP_label
-        tau = (self.state[0] - theta_plus) / self.stepLength
+        tau = min(max((self.state[0] - theta_plus) / self.stepLength,0.001),0.999)
         return tau, self.state[0], self.state[7], self.stepLength
     
 

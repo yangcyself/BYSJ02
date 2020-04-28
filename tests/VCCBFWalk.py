@@ -138,9 +138,15 @@ if __name__ == "__main__":
             "u": [t[5] for t in Traj]
         } ,open(dumpname,"wb"))
         s.add_info("trajlog",dumpname)
-    CBF_plot(dim = 0)
-    CBF_plot(dim = 1)
-    Fr_plot()
+
+    IOcmd_plot(dim = 0)
+    IOcmd_plot(dim = 1)
+    IOcmd_plot(dim = 2)
+    IOcmd_plot(dim = 3)
+
+    # CBF_plot(dim = 0)
+    # CBF_plot(dim = 1)
+    # Fr_plot()
     
     U_plot(dim = 0)
     U_plot(dim = 1)
