@@ -95,6 +95,12 @@ def Fr_plot():
     plt.legend()
     plt.show()
 
+def U_plot(dim = 0):
+    plt.plot([t[0] for t in Traj], [t[5][dim+3] for t in Traj], label = "torque dim %d"%dim)
+    plt.legend()
+    plt.grid()
+    plt.show()
+
 
 
 ct.callbacks.append(callback_traj)
@@ -135,3 +141,8 @@ if __name__ == "__main__":
     CBF_plot(dim = 0)
     CBF_plot(dim = 1)
     Fr_plot()
+    
+    U_plot(dim = 0)
+    U_plot(dim = 1)
+    U_plot(dim = 2)
+    U_plot(dim = 3)
