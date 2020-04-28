@@ -6,6 +6,9 @@ import sys
 sys.path.append(".")
 from ctrl.CBFWalker import *
 import matplotlib.pyplot as plt
+from ExperimentSecretary.Core import Session
+import pickle as pkl
+
 
 CBF_WALKER_CTRL.restart()
 ct = CBF_WALKER_CTRL()
@@ -63,30 +66,30 @@ if 1: ## HA_CBF of the swing toe
 
 Traj = []
 def callback_traj(obj):
-    Traj.append((obj.t, obj.Hx, obj.IOcmd, obj.ResultFr))
+    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.ResultFr, obj.CBF_CLF_QP))
 def callback_clear():
     Traj = []
 
 def IOcmd_plot(dim = 0):
     plt.plot([t[0] for t in Traj], [t[1][dim+3] for t in Traj], label = "State dimension%d"%dim)
-    plt.plot([t[0] for t in Traj], [t[2][0][dim] for t in Traj], label = "command dimension%d"%dim)
+    plt.plot([t[0] for t in Traj], [t[3][0][dim] for t in Traj], label = "command dimension%d"%dim)
     plt.legend()
     plt.show()
 def CBF_plot(dim = 0):
-    plt.plot([t[0] for t in Traj], [t[1][dim+7] for t in Traj], label = "CBF state dim%d"%dim)
+    plt.plot([t[0] for t in Traj], [t[2][dim+7] for t in Traj], label = "CBF state dim%d"%dim)
     if(dim == 0):
         plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + np.math.pi/6 for t in Traj], label = "CBF Upper bound%d"%dim)
         plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - np.math.pi/6 for t in Traj], label = "CBF LowerUpper bound%d"%dim)
     if(dim == 1):
-        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + (np.math.pi/6 + np.math.pi/12 * (1-t[1][9])) for t in Traj], label = "CBF Upper bound%d"%dim)
-        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - (np.math.pi/6 + np.math.pi/12 * (1-t[1][9])) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + (np.math.pi/6 + np.math.pi/12 * (1-t[2][9])) for t in Traj], label = "CBF Upper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - (np.math.pi/6 + np.math.pi/12 * (1-t[2][9])) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
     plt.ylim((np.math.pi - 0.6, np.math.pi + 0.6))
     plt.legend()
     plt.show()
 
 def Fr_plot():
-    plt.plot([t[0] for t in Traj], [t[3][0] for t in Traj], label = "Fr state x")
-    plt.plot([t[0] for t in Traj], [t[3][1] for t in Traj], label = "Fr state y")
+    plt.plot([t[0] for t in Traj], [t[4][0] for t in Traj], label = "Fr state x")
+    plt.plot([t[0] for t in Traj], [t[4][1] for t in Traj], label = "Fr state y")
     plt.plot([t[0] for t in Traj], [0 for t in Traj], label = "0")
     plt.grid()
     plt.legend()
@@ -120,8 +123,15 @@ reset()
 
 
 if __name__ == "__main__":
-    
-    ct.step(5)
+    with Session(__file__) as s:
+        ct.step(5)
+        dumpname = os.path.abspath(os.path.join("./data/Traj","%d.pkl"%time.time()))
+        pkl.dump({
+            "t": [t[0] for t in Traj],
+            "state": [t[1] for t in Traj],
+            "u": [t[5] for t in Traj]
+        } ,open(dumpname,"wb"))
+        s.add_info("trajlog",dumpname)
     CBF_plot(dim = 0)
     CBF_plot(dim = 1)
     Fr_plot()
