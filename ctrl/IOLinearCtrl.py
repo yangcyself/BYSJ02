@@ -68,6 +68,11 @@ class IOLinearCTRL(CTRL):
         
         return redStance, theta_plus, Labelmap
 
+    @property
+    def gc_mask(self): #override
+        redStance, theta_plus, Labelmap = self.STEP_label
+        return np.array([redStance, not redStance])
+        
 
     @CTRL_COMPONENT
     def VC_c(self):
