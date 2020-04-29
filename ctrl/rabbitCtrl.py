@@ -86,6 +86,7 @@ class CTRL:
         self.ctrl_value = {}  # results of control components
         self.ctrl_static = {} # static variables in control components
         self.t = 0
+        self._JointTorqueCmd = np.zeros(4) # the command of joints torque. This value will be passed to joint each iteration
     
         self.resetFlags()
         self.callbacks = []
@@ -96,10 +97,24 @@ class CTRL:
 
     def resetFlags(self):
         [self._resetflag(k) for k in self.ctrl_flags.keys()]
+        self._JointTorqueCmd = np.zeros(4)
 
 
     def resetStatic(self):
         self.ctrl_static = {}
+
+    
+    def _setJointTorques(self):
+        """
+        ! This method is only to be called in `step`. The interface for set torque is `setJointTorques` 
+            This implementation is to make sure that `p.setJointMotorControl2` is called only once in each step. 
+            `p.setJointMotorControl2`'s command will be plused instead of overwritten if called more than once before one step
+        """
+        p.setJointMotorControlArray(GP.robot,qind[3:],p.POSITION_CONTROL,[0]*4,forces=[0]*4)
+        p.setJointMotorControlArray(bodyIndex=GP.robot,
+                                jointIndices=qind[3:],
+                                controlMode=p.TORQUE_CONTROL,
+                                forces=self._JointTorqueCmd)
 
 
     def step(self,T = None,sleep=None):
@@ -113,6 +128,7 @@ class CTRL:
                 if(any(callres)): # use the call backs as break point checkers
                     return callres
 
+                self._setJointTorques()
                 p.stepSimulation()
                 self.t += dt
                 if(sleep is not None):
@@ -301,8 +317,7 @@ class CTRL:
         return (FrA, Frb)
 
 
-    @staticmethod
-    def setJointTorques(torque, mask = [1]*4):
+    def setJointTorques(self, torque, mask = [1]*4):
         """
         arg torque: A four-element list 
         arg mask:   Whether to control this joint
@@ -311,14 +326,9 @@ class CTRL:
         """
         assert(len(torque) == 4)
         assert(len(mask) == 4)
-        for i,ind in enumerate(qind[3:]):
-            if(mask[i]):
-                p.setJointMotorControl2(GP.robot,ind,p.POSITION_CONTROL,0,force=0)
-                p.setJointMotorControl2(bodyIndex=GP.robot,
-                                        jointIndex=ind,
-                                        controlMode=p.TORQUE_CONTROL,
-                                        force=max(min(torque[i], GP.MAXTORQUE[i+3]),-GP.MAXTORQUE[i+3]))
-        return np.array([0]*3 + list(np.minimum(np.maximum(torque, -GP.MAXTORQUE[3:]), GP.MAXTORQUE[3:]) * np.array(mask)))
+        mask = np.array(mask).astype(bool)
+        self._JointTorqueCmd[mask] = np.minimum(np.maximum(torque, -GP.MAXTORQUE[3:]), GP.MAXTORQUE[3:])[mask]
+        return np.array([0]*3 + list(self._JointTorqueCmd))
 
 
     @staticmethod
