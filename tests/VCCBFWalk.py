@@ -66,7 +66,7 @@ if 1: ## HA_CBF of the swing toe
 
 Traj = []
 def callback_traj(obj):
-    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.ResultFr, obj.CBF_CLF_QP))
+    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.ResultFr, obj.CBF_CLF_QP, obj.log_fw))
 def callback_clear():
     Traj = []
 
@@ -97,6 +97,12 @@ def Fr_plot():
 
 def U_plot(dim = 0):
     plt.plot([t[0] for t in Traj], [t[5][dim+3] for t in Traj], label = "torque dim %d"%dim)
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+def fw_plot(dim=0):
+    plt.plot([t[0] for t in Traj], [t[6][dim] for t in Traj], label = "Feedforward dim %d"%dim)
     plt.legend()
     plt.grid()
     plt.show()
@@ -152,3 +158,8 @@ if __name__ == "__main__":
     U_plot(dim = 1)
     U_plot(dim = 2)
     U_plot(dim = 3)
+
+    fw_plot(dim = 0)
+    fw_plot(dim = 1)
+    fw_plot(dim = 2)
+    fw_plot(dim = 3)

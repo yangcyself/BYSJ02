@@ -109,16 +109,16 @@ class CTRL:
             try:
                 self.resetFlags()
                 [c(self) for c in self.ctrl_components.values()]    
+                callres = [c(self) for c in self.callbacks]
+                if(any(callres)): # use the call backs as break point checkers
+                    return callres
 
                 p.stepSimulation()
+                self.t += dt
                 if(sleep is not None):
                     time.sleep(sleep)
                 else:
                     time.sleep(dt)
-                self.t += dt
-                callres = [c(self) for c in self.callbacks]
-                if(any(callres)): # use the call backs as break point checkers
-                    return callres
             except KeyboardInterrupt as ex:
                 return [c(self) for c in self.callbacks]
             except p.error as ex:

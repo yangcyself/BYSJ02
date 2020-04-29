@@ -122,7 +122,8 @@ class IOLinearCTRL(CTRL):
 
         ddYC =  kp * (Y_c - Y) + kd * (dY_c - dY) + ddY_c
         fw = -self.VC_H @ (self.DA @(self.DA @self.state + self.Dg))[:GP.QDIMS]
-        
+        self.log_fw = fw
+
         DB = self.DB[:,3:]
         try:
             u = np.linalg.inv(self.VC_H @ (self.DA @ DB)[:GP.QDIMS,:]) @ (ddYC + fw)
