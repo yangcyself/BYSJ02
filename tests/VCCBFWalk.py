@@ -25,10 +25,10 @@ Balpha =  np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 1000, kd = 50)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
-if 1: ## CBF of the stance toe
+if 0: ## CBF of the stance toe
     mc = 10
     # dmth_1 = np.math.pi/18
     dmth_1 = np.math.pi/6
@@ -87,17 +87,22 @@ def IOcmd_plot(dim = 0):
     plt.plot([t[0] for t in Traj], [t[3][0][dim] for t in Traj], label = "command dimension%d"%dim)
     plt.legend()
     plt.show()
+
 def CBF_plot(dim = 0):
-    plt.plot([t[0] for t in Traj], [t[2][dim+7] for t in Traj], label = "CBF state dim%d"%dim)
-    if(dim == 0):
-        plt.plot([t[0] for t in Traj], [mth0_1 + dmth_1 for t in Traj], label = "CBF Upper bound%d"%dim)
-        plt.plot([t[0] for t in Traj], [mth0_1 - dmth_1 for t in Traj], label = "CBF LowerUpper bound%d"%dim)
-    if(dim == 1):
-        plt.plot([t[0] for t in Traj], [mth0_2+ (dmth_2 - ma* t[2][9]) for t in Traj], label = "CBF Upper bound%d"%dim)
-        plt.plot([t[0] for t in Traj], [mth0_2- (dmth_2 - ma*t[2][9]) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
-    plt.ylim((np.math.pi - 0.6, np.math.pi + 0.6))
-    plt.legend()
-    plt.show()
+    try:
+        plt.plot([t[0] for t in Traj], [t[2][dim+7] for t in Traj], label = "CBF state dim%d"%dim)
+        if(dim == 0):
+            plt.plot([t[0] for t in Traj], [mth0_1 + dmth_1 for t in Traj], label = "CBF Upper bound%d"%dim)
+            plt.plot([t[0] for t in Traj], [mth0_1 - dmth_1 for t in Traj], label = "CBF LowerUpper bound%d"%dim)
+        if(dim == 1):
+            plt.plot([t[0] for t in Traj], [mth0_2+ (dmth_2 - ma* t[2][9]) for t in Traj], label = "CBF Upper bound%d"%dim)
+            plt.plot([t[0] for t in Traj], [mth0_2- (dmth_2 - ma*t[2][9]) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
+        plt.ylim((np.math.pi - 0.6, np.math.pi + 0.6))
+        plt.legend()
+        plt.show()
+    except Exception as ex:
+        plt.clf()
+        print(str(ex))
 
 def Fr_plot():
     plt.plot([t[0] for t in Traj], [t[4][0] for t in Traj], label = "Fr state x")
