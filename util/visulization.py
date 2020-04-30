@@ -16,7 +16,7 @@ def QuadContour(A,B,C, X, Xbase = np.array([1,0,0,0,0,0,0, 0,0,0,0,0,0,0,]), Yba
 
         print(a,b,c)
 
-        if(a < 1e-6):
+        if(abs(a) < 1e-6):
             retList.append((x,-c/b))
         else:
             delta = b**2 - 4 * a * c 
@@ -26,6 +26,7 @@ def QuadContour(A,B,C, X, Xbase = np.array([1,0,0,0,0,0,0, 0,0,0,0,0,0,0,]), Yba
                 delta = np.sqrt(delta)
                 retList.append((x,(-b + delta)/(2*a)))
                 retList.append((x,(-b - delta)/(2*a)))
+                print((-b - delta)/(2*a))
     return np.array(retList)
 
 if __name__ == "__main__":

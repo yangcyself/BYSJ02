@@ -4,13 +4,16 @@ Test the walking with Virtual constraint: using the IO linearization control sch
 
 import sys
 sys.path.append(".")
+import globalParameters as GP
+# GP.STARTSIMULATION = False
 from ctrl.CBFWalker import *
 import matplotlib.pyplot as plt
 from ExperimentSecretary.Core import Session
+from util.visulization import QuadContour
 import pickle as pkl
 
 
-CBF_WALKER_CTRL.restart()
+
 ct = CBF_WALKER_CTRL()
 
 Balpha =  np.array([
@@ -26,43 +29,52 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = 1000, kd = 50)
 
 # add a CBF controlling The angle from stance leg to torso
 if 1: ## CBF of the stance toe
-    mc = 1000
-    # dmth = np.math.pi/18
-    dmth = np.math.pi/6
-    mth0 = np.math.pi + dmth/2
+    mc = 10
+    # dmth_1 = np.math.pi/18
+    dmth_1 = np.math.pi/6
+    mth0_1 = np.math.pi + 3*dmth_1/4
 
     HA_CBF = np.zeros((20,20))
     HA_CBF[7,7] = - mc
     HA_CBF[7,17] = HA_CBF[17,7] = -1
 
     Hb_CBF = np.zeros(20)
-    Hb_CBF[17] = 2 * mth0
-    Hb_CBF[7] = mc * 2 * mth0
-    Hc_CBF = mc * (dmth **2 - mth0 **2)
+    Hb_CBF[17] = 2 * mth0_1
+    Hb_CBF[7] = mc * 2 * mth0_1
+    Hc_CBF = mc * (dmth_1 **2 - mth0_1 **2)
     ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
-if 1: ## HA_CBF of the swing toe
-    mc = 1000
-    dmth = np.math.pi/6
-    mth0 = np.math.pi + dmth/2
-    ma = np.math.pi/12 # the factor acts on the tau
-    dmth = dmth + ma
+# pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF,np.arange(0,1,0.05),
+#     Xbase = np.array([0,0,0,0,0,0,0,0,0,1, 0,0,0,0,0,0,0,0,0,0]), Ybase = np.array([0,0,0,0,0,0,0,1,0,0, 0,0,0,0,0,0,0,0,0,0]))
+# plt.plot(pts[:,0], pts[:,1], ".", label = "CBF")
+# plt.show()
+
+if 0: ## HA_CBF of the swing toe
+    mc = 1
+    dmth_2 = np.math.pi/6
+    mth0_2 = np.math.pi + 3*dmth_2/4
+    ma = np.math.pi/6 # the factor acts on the tau
+    dmth_2 = dmth_2 + ma
 
     HA_CBF = np.zeros((20,20))
     HA_CBF[8,8] = - mc
     HA_CBF[8,18] = HA_CBF[18,8] = -1
     Hb_CBF = np.zeros(20)
-    Hb_CBF[18] = 2 * mth0
-    Hb_CBF[8] = mc * 2 * mth0
-    Hc_CBF = mc * (dmth **2 - mth0 **2)
+    Hb_CBF[18] = 2 * mth0_2
+    Hb_CBF[8] = mc * 2 * mth0_2
+    Hc_CBF = mc * (dmth_2 **2 - mth0_2 **2)
 
     HA_CBF[9,9] = mc * ma**2
     HA_CBF[9,19] = HA_CBF[19,9] = ma**2 
-    Hb_CBF[9] = mc * 2 * dmth
-    Hb_CBF[19] =  2 * dmth
+    Hb_CBF[9] = - mc * 2 * dmth_2 * ma
+    Hb_CBF[19] =  2 * dmth_2
 
     ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
+# pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF,np.arange(0,1,0.05),
+#     Xbase = np.array([0,0,0,0,0,0,0,0,0,1, 0,0,0,0,0,0,0,0,0,0]), Ybase = np.array([0,0,0,0,0,0,0,0,1,0, 0,0,0,0,0,0,0,0,0,0]))
+# plt.plot(pts[:,0], pts[:,1], ".", label = "CBF")
+# plt.show()
 
 Traj = []
 def callback_traj(obj):
@@ -78,11 +90,11 @@ def IOcmd_plot(dim = 0):
 def CBF_plot(dim = 0):
     plt.plot([t[0] for t in Traj], [t[2][dim+7] for t in Traj], label = "CBF state dim%d"%dim)
     if(dim == 0):
-        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + np.math.pi/6 for t in Traj], label = "CBF Upper bound%d"%dim)
-        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - np.math.pi/6 for t in Traj], label = "CBF LowerUpper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [mth0_1 + dmth_1 for t in Traj], label = "CBF Upper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [mth0_1 - dmth_1 for t in Traj], label = "CBF LowerUpper bound%d"%dim)
     if(dim == 1):
-        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 + (np.math.pi/6 + np.math.pi/12 * (1-t[2][9])) for t in Traj], label = "CBF Upper bound%d"%dim)
-        plt.plot([t[0] for t in Traj], [np.math.pi + np.math.pi/12 - (np.math.pi/6 + np.math.pi/12 * (1-t[2][9])) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [mth0_2+ (dmth_2 - ma* t[2][9]) for t in Traj], label = "CBF Upper bound%d"%dim)
+        plt.plot([t[0] for t in Traj], [mth0_2- (dmth_2 - ma*t[2][9]) for t in Traj], label = "CBF LowerUpper bound%d"%dim)
     plt.ylim((np.math.pi - 0.6, np.math.pi + 0.6))
     plt.legend()
     plt.show()
@@ -130,7 +142,7 @@ def reset():
     -2.18405395105742,
     3.29500361015889,
     ])
-
+CBF_WALKER_CTRL.restart()
 reset()
 
 
@@ -150,9 +162,9 @@ if __name__ == "__main__":
     IOcmd_plot(dim = 2)
     IOcmd_plot(dim = 3)
 
-    # CBF_plot(dim = 0)
-    # CBF_plot(dim = 1)
-    # Fr_plot()
+    CBF_plot(dim = 0)
+    CBF_plot(dim = 1)
+    Fr_plot()
     
     U_plot(dim = 0)
     U_plot(dim = 1)
