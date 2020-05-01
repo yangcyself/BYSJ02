@@ -26,7 +26,7 @@ IOLinearCTRL.IOLin.reg(ct,kp = 1000, kd = 50)
 Traj = []
 
 def callback_traj(obj):
-    Traj.append((obj.t, obj.state, None, obj.IOcmd, None, obj.IOLin, obj.log_fw))
+    Traj.append((obj.t, obj.state, None, obj.IOcmd, None, obj.IOLin, obj.LOG_FW))
 def callback_clear():
     Traj = []
 

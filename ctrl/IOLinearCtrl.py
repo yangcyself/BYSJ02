@@ -29,6 +29,7 @@ class IOLinearCTRL(CTRL):
         self.VC_H = np.concatenate([np.zeros((4,3)), np.eye(4)], axis=1)
         self.stepLength = 0.0779 -( -0.0797)
         IOLinearCTRL.IOLin.reg(self)
+        self.LOG_FW = None
 
 
     @CTRL_COMPONENT
@@ -127,7 +128,7 @@ class IOLinearCTRL(CTRL):
 
         ddYC =  kp * (Y_c - Y) + kd * (dY_c - dY) + ddY_c
         fw = -self.VC_H @ (self.DA @(self.DA @self.state + self.Dg))[:GP.QDIMS]
-        self.log_fw = fw
+        self.LOG_FW = fw
 
         DB = self.DB[:,3:]
         try:

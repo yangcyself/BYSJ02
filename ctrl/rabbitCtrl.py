@@ -136,6 +136,8 @@ class CTRL:
                 else:
                     time.sleep(dt)
             except KeyboardInterrupt as ex:
+                if(not GP.CATCH_KEYBOARD_INTERRPUT):
+                    raise ex
                 return [c(self) for c in self.callbacks]
             except p.error as ex:
                 if("Not connected to physics server" in str(ex)):

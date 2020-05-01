@@ -78,7 +78,7 @@ if 0: ## HA_CBF of the swing toe
 
 Traj = []
 def callback_traj(obj):
-    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.ResultFr, obj.CBF_CLF_QP, obj.log_fw))
+    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.LOG_ResultFr, obj.CBF_CLF_QP, obj.LOG_FW))
 def callback_clear():
     Traj = []
 
@@ -127,6 +127,11 @@ def fw_plot(dim=0):
 
 
 ct.callbacks.append(callback_traj)
+def callback_break(obj):
+    return not (3*np.math.pi/4 < obj.Hx[7] < 5*np.math.pi/4 
+                and 3*np.math.pi/4 < obj.Hx[8] < 5*np.math.pi/4
+                and -0.1<obj.Hx[0])
+ct.callbacks.append(callback_break)
 
 def reset():
     ct.resetStatic()

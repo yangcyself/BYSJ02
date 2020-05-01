@@ -16,7 +16,8 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
     def __init__(self):
         super().__init__()
         CBF_WALKER_CTRL.CBF_CLF_QP.reg(self) # This operation will cover the `CBF_CLF_QP` in parent class
-        self.CBF_SUCCESS = True # flag representing the status of CBF
+        self.LOG_CBF_SUCCESS = True # flag representing the status of CBF
+        self.LOG_ResultFr = None
 
 
     @CTRL_COMPONENT
@@ -147,9 +148,9 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         #     print(CBF_cons(res_x))
         
         # Use a flag to represent the state of optimization
-        self.CBF_SUCCESS = res.success
-        self.ResultFr = FrA @ res_x + Frb if(sum(self.gc_mask)>0) else np.zeros(2)
-        if not self.CBF_SUCCESS:
+        self.LOG_CBF_SUCCESS = res.success
+        self.LOG_ResultFr = FrA @ res_x + Frb if(sum(self.gc_mask)>0) else np.zeros(2)
+        if not self.LOG_CBF_SUCCESS:
             print("Optimization Message:", res.message)
         # print("CBF Result: ",[c(res_x) for c in CBF_CONS])
         if(self._v):

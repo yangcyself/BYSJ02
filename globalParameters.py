@@ -32,6 +32,8 @@ MAXTORQUE = np.array([0,0,0,500,500,500,500])
 
 GRAVITY = -9.8
 
+CATCH_KEYBOARD_INTERRPUT = True
+
 class qind_t:
     def __init__(self):
         # convert from index of [x,y,r,q1,q2,q3,q4] to the indexes in the robot tree(includes toe)
