@@ -11,6 +11,7 @@ class playBackCTRL(CTRL):
         super().__init__()
         self.traj = traj
         playBackCTRL.playback.reg(self)
+        self.trajLength = traj["t"][-1]
     
     def setStateT(self,t = 0):
         t = np.argmin(abs(np.array(self.traj["t"])-t))

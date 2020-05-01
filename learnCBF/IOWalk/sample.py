@@ -75,9 +75,10 @@ class SampleSession_t(Session):
     """
         define the Session class to record the information
     """
-    def __init__(self, BalphaStd = 0.03, Ntraj = 100, Nsample = 10):
+    def __init__(self, BalphaStd = 0.03, Ntraj = 100, Nsample = 10, T_Threshold = 1.3):
         super().__init__(expName="IOWalkSample")
         self.BalphaStd = BalphaStd
+        self.T_Threshold = T_Threshold
         self.storTrajPath = "./data/Traj/IOWalkSample/%s"%(self._storFileName)
         self.storSamplePath = "./data/StateSampls/IOWalkSample/%s"%(self._storFileName)
         os.makedirs(self.storTrajPath,exist_ok=True)
@@ -90,6 +91,7 @@ class SampleSession_t(Session):
         self.add_info("storSamplePath",self.storSamplePath)
         self.add_info("Nsamples",self.Nsamples)
         self.add_info("Ntraj",self.Ntraj)
+        self.add_info("T_Threshold", self.T_Threshold)
 
 
     def body(self):
@@ -98,14 +100,17 @@ class SampleSession_t(Session):
         self.sampleCount_danger = 0
         for i in range(self.Ntraj):
             Traj = SampleTraj(self.BalphaStd)
-            storTraj(Traj, self.storTrajPath)
-            self.trajCount += 1
 
             T_list = np.array([t[0] for t in Traj])
             Hx_list = np.array([t[2] for t in Traj])
 
             T_whole = T_list[-1]
+            if(T_whole < self.T_Threshold):
+                continue
+
             self.TrajLengths.append(T_whole) 
+            storTraj(Traj, self.storTrajPath)
+            self.trajCount += 1
 
             # sample states from the traj
             # [0, T_safe] are times for safe samples, [T_danger, T_whole] are times for danger samples
