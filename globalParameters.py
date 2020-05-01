@@ -69,3 +69,5 @@ class qind_t:
         return 7
             
 qind = qind_t()
+
+KEYBOARD_INTERRPUT = False

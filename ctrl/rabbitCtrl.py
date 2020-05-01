@@ -118,6 +118,7 @@ class CTRL:
 
 
     def step(self,T = None,sleep=None):
+        assert not GP.KEYBOARD_INTERRPUT
         T = dt if T is None else T
         for i in range(int(T/dt+0.5)):
             # Call all regested control components
@@ -136,8 +137,7 @@ class CTRL:
                 else:
                     time.sleep(dt)
             except KeyboardInterrupt as ex:
-                if(not GP.CATCH_KEYBOARD_INTERRPUT):
-                    raise ex
+                GP.KEYBOARD_INTERRPUT = not GP.CATCH_KEYBOARD_INTERRPUT
                 return [c(self) for c in self.callbacks]
             except p.error as ex:
                 if("Not connected to physics server" in str(ex)):
