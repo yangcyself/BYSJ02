@@ -30,6 +30,7 @@ def recoverSecondOrderFunc(f,dim = 20):
 def SVM_factors(X,y,dim = 20,gamma = 9999):
     clf = SVC(kernel = "poly", degree=2, gamma=gamma,verbose=False)
     print("start Fitting")
+    print("X shape:",X.shape)
     clf.fit(X, y)
     print("Finished Fitting")
     A,b,c = recoverSecondOrderFunc(lambda x : clf.decision_function(x.reshape((1,-1))),dim = dim)
@@ -52,7 +53,7 @@ class FitCBFSession(FitCBFSession_t):
         self.y = []
         self.loadedFile = []
         self.gamma = gamma
-        for f in glob(os.path.join(loaddir,"*.pkl"))[:45]:
+        for f in glob(os.path.join(loaddir,"*.pkl"))[:40]:
             data = pkl.load(open(f,"rb"))
             self.loadedFile.append(f)
             self.X += list(data['safe'])
@@ -60,18 +61,20 @@ class FitCBFSession(FitCBFSession_t):
             self.X += list(data['danger'])
             self.y += [ -1 ] * len(data['danger'])
 
+        self.X = np.array(self.X)[:,1:]
+
         self.resultFile = "data/CBF/%s_%s.json"%(name,self._storFileName)
 
         self.add_info("resultFile",self.resultFile)
         self.add_info("Loaded File",self.loadedFile)
         self.add_info("Total Points",len(self.X))
         self.add_info("X dim",self.X.shape[1])
-        self.add_info("number Positive",sum(np.array(self.y)==1))
+        self.add_info("number Positive",int(sum(np.array(self.y)==1)))
         self.add_info("gamma",self.gamma)
     
     def body(self):
         self._startTime = datetime.datetime.now()
-        A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma)
+        A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1])
         dumpJson(A,b,c,self.resultFile)
     
     @FitCBFSession_t.column
@@ -81,3 +84,4 @@ class FitCBFSession(FitCBFSession_t):
 if __name__ == '__main__':
     s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-01-12_41_24",
         name = "Ignore-x")
+    s()
