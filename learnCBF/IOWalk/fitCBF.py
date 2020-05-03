@@ -5,6 +5,8 @@ import pickle as pkl
 from scipy.optimize import minimize
 import os
 import json
+import datetime
+from ExperimentSecretary.Core import Session
 
 
 def recoverSecondOrderFunc(f,dim = 20):
@@ -25,8 +27,8 @@ def recoverSecondOrderFunc(f,dim = 20):
             A[i,j] = A[j,i] = (f(t) - t.T @ A @ t - b @ t - c)/2
     return A,b,c
 
-def SVM_factors(X,y,dim = 20):
-    clf = SVC(kernel = "poly", degree=2, gamma=99999,verbose=True,cache_size=7000 )
+def SVM_factors(X,y,dim = 20,gamma = 9999):
+    clf = SVC(kernel = "poly", degree=2, gamma=gamma,verbose=False)
     print("start Fitting")
     clf.fit(X, y)
     print("Finished Fitting")
@@ -37,18 +39,45 @@ def SVM_factors(X,y,dim = 20):
 def dumpJson(A,b,c,fileName = "data/CBF/tmp2.json"):
     json.dump({"A":A.tolist(),"b":b.tolist(),"c":c},open(fileName,"w"))
 
+class FitCBFSession_t(Session):
+    """
+        define the Session class to record the information
+    """
+    pass
+
+class FitCBFSession(FitCBFSession_t):
+    def __init__(self, loaddir, name = "tmp", gamma = 9999):
+        super().__init__()
+        self.X = []
+        self.y = []
+        self.loadedFile = []
+        self.gamma = gamma
+        for f in glob(os.path.join(loaddir,"*.pkl"))[:45]:
+            data = pkl.load(open(f,"rb"))
+            self.loadedFile.append(f)
+            self.X += list(data['safe'])
+            self.y += [ 1 ] * len(data['safe'])
+            self.X += list(data['danger'])
+            self.y += [ -1 ] * len(data['danger'])
+
+        self.resultFile = "data/CBF/%s_%s.json"%(name,self._storFileName)
+
+        self.add_info("resultFile",self.resultFile)
+        self.add_info("Loaded File",self.loadedFile)
+        self.add_info("Total Points",len(self.X))
+        self.add_info("X dim",self.X.shape[1])
+        self.add_info("number Positive",sum(np.array(self.y)==1))
+        self.add_info("gamma",self.gamma)
+    
+    def body(self):
+        self._startTime = datetime.datetime.now()
+        A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma)
+        dumpJson(A,b,c,self.resultFile)
+    
+    @FitCBFSession_t.column
+    def timeComsumption(self):
+        return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
-
-    loaddir = "./data/StateSamples/IOWalkSample/2020-05-01-12_41_24"
-    X = []
-    y = []
-    for f in glob(os.path.join(loaddir,"*.pkl"))[:45]:
-        data = pkl.load(open(f,"rb"))
-        X += list(data['safe'])
-        y += [ 1 ] * len(data['safe'])
-        X += list(data['danger'])
-        y += [ -1 ] * len(data['danger'])
-    print(np.array(X).shape)
-    A,b,c = SVM_factors(np.array(X),y)
-    dumpJson(A,b,c)
+    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-01-12_41_24",
+        name = "Ignore-x")
