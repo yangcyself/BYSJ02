@@ -48,14 +48,17 @@ CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
-Polyparameter = json.load(open("data/CBF/tmp1.json","r"))
+Polyparameter = json.load(open("data/CBF/Ignore-x_2020-05-03-18_00_54.json","r"))
 
 # Make the init_state positive in CBF
 
 ct.resetFlags()
 IOLinearCTRL.state.set(ct,init_state)
 IOLinearCTRL.contact_mask.set(ct,np.array((True,False)))
-HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
+HA_CBF_,Hb_CBF_,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
+HA_CBF, Hb_CBF = np.zeros((20,20)), np.zeros(20)
+HA_CBF[1:,1:] = HA_CBF_
+Hb_CBF[1:] = Hb_CBF_
 sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
 HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
@@ -77,7 +80,7 @@ def IOcmd_plot(dim = 0):
 
 def CBF_plot():
     xx = [t[2] for t in Traj]
-    plt.plot([t[0] for t in Traj],[x.T @ HA_CBF @ x + Hb_CBF @ x + Hc_CBF  for x in xx], ".", label = "CBF")
+    plt.plot([t[0] for t in Traj],[x.T @ HA_CBF @ x + Hb_CBF @ x + Hc_CBF  for x in xx], label = "CBF")
     plt.show()
 
     
@@ -133,7 +136,7 @@ if __name__ == "__main__":
     IOcmd_plot(dim = 2)
     IOcmd_plot(dim = 3)
 
-    CBF_plot(dim = 0)
+    CBF_plot()
     Fr_plot()
     
     U_plot(dim = 0)

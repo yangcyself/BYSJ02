@@ -48,7 +48,7 @@ class FitCBFSession_t(Session):
 
 class FitCBFSession(FitCBFSession_t):
     def __init__(self, loaddir, name = "tmp", gamma = 9999):
-        super().__init__()
+        super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []
         self.loadedFile = []
