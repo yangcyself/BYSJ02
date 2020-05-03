@@ -87,5 +87,5 @@ class FitCBFSession(FitCBFSession_t):
 
 if __name__ == '__main__':
     s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-01-12_41_24",
-        name = "3_7weight",class_weight={1: 0.3, -1: 0.7})
+        name = "1_9weight",class_weight={1: 0.1, -1: 0.9})
     s()
