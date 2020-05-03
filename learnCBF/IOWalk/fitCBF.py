@@ -47,12 +47,13 @@ class FitCBFSession_t(Session):
     pass
 
 class FitCBFSession(FitCBFSession_t):
-    def __init__(self, loaddir, name = "tmp", gamma = 9999):
+    def __init__(self, loaddir, name = "tmp", gamma = 9999, class_weight = None):
         super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []
         self.loadedFile = []
         self.gamma = gamma
+        self.class_weight = class_weight
         for f in glob(os.path.join(loaddir,"*.pkl"))[:40]:
             data = pkl.load(open(f,"rb"))
             self.loadedFile.append(f)
@@ -71,17 +72,20 @@ class FitCBFSession(FitCBFSession_t):
         self.add_info("X dim",self.X.shape[1])
         self.add_info("number Positive",int(sum(np.array(self.y)==1)))
         self.add_info("gamma",self.gamma)
+        self.add_info("class_weight",self.class_weight)
     
+
     def body(self):
         self._startTime = datetime.datetime.now()
         A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1])
         dumpJson(A,b,c,self.resultFile)
     
+
     @FitCBFSession_t.column
     def timeComsumption(self):
         return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
     s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-01-12_41_24",
-        name = "Ignore-x")
+        name = "3_7weight",class_weight={1: 0.3, -1: 0.7})
     s()

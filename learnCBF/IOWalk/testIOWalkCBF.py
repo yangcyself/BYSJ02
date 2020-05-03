@@ -48,7 +48,7 @@ CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
-Polyparameter = json.load(open("data/CBF/Ignore-x_2020-05-03-18_00_54.json","r"))
+Polyparameter = json.load(open("data/CBF/3_7weight_2020-05-03-20_30_22.json","r"))
 
 # Make the init_state positive in CBF
 
@@ -81,6 +81,8 @@ def IOcmd_plot(dim = 0):
 def CBF_plot():
     xx = [t[2] for t in Traj]
     plt.plot([t[0] for t in Traj],[x.T @ HA_CBF @ x + Hb_CBF @ x + Hc_CBF  for x in xx], label = "CBF")
+    plt.plot([t[0] for t in Traj],[0 for x in xx], label = "0")
+    plt.title("CBF")
     plt.show()
 
     
@@ -131,20 +133,20 @@ if __name__ == "__main__":
         } ,open(dumpname,"wb"))
         s.add_info("trajlog",dumpname)
 
-    IOcmd_plot(dim = 0)
-    IOcmd_plot(dim = 1)
-    IOcmd_plot(dim = 2)
-    IOcmd_plot(dim = 3)
+    # IOcmd_plot(dim = 0)
+    # IOcmd_plot(dim = 1)
+    # IOcmd_plot(dim = 2)
+    # IOcmd_plot(dim = 3)
 
     CBF_plot()
-    Fr_plot()
+    # Fr_plot()
     
-    U_plot(dim = 0)
-    U_plot(dim = 1)
-    U_plot(dim = 2)
-    U_plot(dim = 3)
+    # U_plot(dim = 0)
+    # U_plot(dim = 1)
+    # U_plot(dim = 2)
+    # U_plot(dim = 3)
 
-    fw_plot(dim = 0)
-    fw_plot(dim = 1)
-    fw_plot(dim = 2)
-    fw_plot(dim = 3)
+    # fw_plot(dim = 0)
+    # fw_plot(dim = 1)
+    # fw_plot(dim = 2)
+    # fw_plot(dim = 3)
