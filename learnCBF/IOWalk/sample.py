@@ -80,7 +80,7 @@ class SampleSession_t(Session):
         self.BalphaStd = BalphaStd
         self.T_Threshold = T_Threshold
         self.storTrajPath = "./data/Traj/IOWalkSample/%s"%(self._storFileName)
-        self.storSamplePath = "./data/StateSampls/IOWalkSample/%s"%(self._storFileName)
+        self.storSamplePath = "./data/StateSamples/IOWalkSample/%s"%(self._storFileName)
         os.makedirs(self.storTrajPath,exist_ok=True)
         os.makedirs(self.storSamplePath,exist_ok=True)
         self.Nsamples = Nsample
@@ -152,6 +152,6 @@ class SampleSession(SampleSession_t):
 CBF_WALKER_CTRL.restart()
             
 if __name__ == '__main__':
-    s = SampleSession()
+    s = SampleSession(Ntraj=1000)
     s()
     
