@@ -27,13 +27,13 @@ def recoverSecondOrderFunc(f,dim = 20):
             A[i,j] = A[j,i] = (f(t) - t.T @ A @ t - b @ t - c)/2
     return A,b,c
 
-def SVM_factors(X,y,dim = 20,gamma = 9999):
-    clf = SVC(kernel = "poly", degree=2, gamma=gamma,verbose=False)
+def SVM_factors(X,y,dim = 20,gamma = 9999, class_weight = None):
+    clf = SVC(kernel = "poly", degree=2, gamma=gamma,verbose=False, class_weight = class_weight)
     print("start Fitting")
     print("X shape:",X.shape)
     clf.fit(X, y)
     print("Finished Fitting")
-    A,b,c = recoverSecondOrderFunc(lambda x : clf.decision_function(x.reshape((1,-1))),dim = dim)
+    A,b,c = recoverSecondOrderFunc(lambda x : clf.decision_function(np.array( [1] + list(x)).reshape((1,-1)) ),dim = dim)
     # print("Function parameter \n",A,b,c)
     return A,b,float(c)
 
@@ -62,7 +62,9 @@ class FitCBFSession(FitCBFSession_t):
             self.X += list(data['danger'])
             self.y += [ -1 ] * len(data['danger'])
 
-        self.X = np.array(self.X)[:,1:]
+        self.X_ = np.array(self.X)[:,1:] # X_ is the 
+        self.X = np.ones_like(self.X)
+        self.X[:,1:] = self.X_ # set the first row of X to be 1
 
         self.resultFile = "data/CBF/%s_%s.json"%(name,self._storFileName)
 
@@ -77,8 +79,12 @@ class FitCBFSession(FitCBFSession_t):
 
     def body(self):
         self._startTime = datetime.datetime.now()
-        A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1])
+        A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1]-1, class_weight = self.class_weight)
         dumpJson(A,b,c,self.resultFile)
+        test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
+        self.add_info("Test:TruePositive",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==1])/sum(np.array(self.y)==1)))
+        self.add_info("Test:TrueNegative",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==-1])/sum(np.array(self.y)==-1)))
+
     
 
     @FitCBFSession_t.column
@@ -87,5 +93,5 @@ class FitCBFSession(FitCBFSession_t):
 
 if __name__ == '__main__':
     s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-01-12_41_24",
-        name = "1_9weight",class_weight={1: 0.1, -1: 0.9})
+        name = "weight_WithB",class_weight={1: 0.3, -1: 0.7})
     s()

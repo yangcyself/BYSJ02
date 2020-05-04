@@ -48,7 +48,7 @@ CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
-Polyparameter = json.load(open("data/CBF/1_9weight_2020-05-03-20_53_09.json","r"))
+Polyparameter = json.load(open("data/CBF/weight_WithB_2020-05-03-23_27_55.json","r"))
 
 # Make the init_state positive in CBF
 
