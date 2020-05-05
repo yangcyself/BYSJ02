@@ -139,3 +139,21 @@ class CBF_CTRL(CTRL):
         return self.setJointTorques(res_x[3:])
     
 
+########################################
+### UTIL FUNCTION FOR GENERATING CBF ###
+########################################
+
+def CBF_GEN_conic(dim,a1,b1,c1,dim1,a2,b2,c2,dim2):
+    mc = 10
+    HA_CBF = np.zeros((14,14))
+    HA_CBF[1,1] = mc
+    HA_CBF[1,8] = HA_CBF[8,1] = 1
+
+    # CBF of the body_x
+    HA_CBF[0,0] = -mc * 50
+    HA_CBF[0,7] = HA_CBF[7,0] = -1 * 50
+    Hb_CBF = np.zeros(14)
+    Hc_CBF = -mc * 0.5 * 0.5
+    
+    return HA_CBF,Hb_CBF,Hc_CBF
+
