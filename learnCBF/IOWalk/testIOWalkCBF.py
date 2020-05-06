@@ -62,49 +62,84 @@ Hb_CBF[1:] = Hb_CBF_
 sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
 HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
-ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
+# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
+# add CBF to constraint on the leg
+ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,4)))
+ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,6)))
 
 Traj = []
 def callback_traj(obj):
-    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.LOG_ResultFr, obj.CBF_CLF_QP, obj.LOG_FW))
+    #                0      1          2       3          4                 5               6           7                      8                  9
+    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.LOG_ResultFr, obj.CBF_CLF_QP, obj.LOG_FW, obj.LOG_CBF_ConsValue, obj.LOG_CBF_Value, obj.LOG_CBF_Drift))
 def callback_clear():
     Traj = []
 
 def IOcmd_plot(dim = 0):
+    plt.figure()
     plt.plot([t[0] for t in Traj], [t[1][dim+3] for t in Traj], label = "State dimension%d"%dim)
     plt.plot([t[0] for t in Traj], [t[3][0][dim] for t in Traj], label = "command dimension%d"%dim)
     plt.legend()
-    plt.show()
+    plt.draw()
 
 
 def CBF_plot():
+    plt.figure()
     xx = [t[2] for t in Traj]
     plt.plot([t[0] for t in Traj],[x.T @ HA_CBF @ x + Hb_CBF @ x + Hc_CBF  for x in xx], label = "CBF")
     plt.plot([t[0] for t in Traj],[0 for x in xx], label = "0")
     plt.title("CBF")
-    plt.show()
+    plt.draw()
 
     
 def Fr_plot():
+    plt.figure()
     plt.plot([t[0] for t in Traj], [t[4][0] for t in Traj], label = "Fr state x")
     plt.plot([t[0] for t in Traj], [t[4][1] for t in Traj], label = "Fr state y")
     plt.plot([t[0] for t in Traj], [0 for t in Traj], label = "0")
     plt.grid()
     plt.legend()
-    plt.show()
+    plt.draw()
 
 def U_plot(dim = 0):
+    plt.figure()
     plt.plot([t[0] for t in Traj], [t[5][dim+3] for t in Traj], label = "torque dim %d"%dim)
     plt.legend()
     plt.grid()
-    plt.show()
+    plt.draw()
 
 def fw_plot(dim=0):
+    plt.figure()
     plt.plot([t[0] for t in Traj], [t[6][dim] for t in Traj], label = "Feedforward dim %d"%dim)
     plt.legend()
     plt.grid()
-    plt.show()
+    plt.draw()
+
+def CBFConsValue_plot(dim = 0):
+    plt.figure()
+    plt.plot([t[0] for t in Traj], [t[7][dim] for t in Traj], label = "CBF constraint value dim %d"%dim)
+    plt.title("CBFConsValue_plot")
+    plt.legend()
+    plt.grid()
+    plt.draw()
+
+
+def CBFvalue_plot(dim = 0):
+    plt.figure()
+    plt.plot([t[0] for t in Traj], [t[8][dim] for t in Traj], label = "CBF value dim %d"%dim)
+    plt.title("CBFvalue_plot")
+    plt.legend()
+    plt.grid()
+    plt.draw()
+
+
+def CBFDrift_plot(dim = 0):
+    plt.figure()
+    plt.plot([t[0] for t in Traj], [t[9][dim] for t in Traj], label = "CBF Drift dim %d"%dim)
+    plt.title("CBFdrift_plot")
+    plt.legend()
+    plt.grid()
+    plt.draw()
 
 
 
@@ -139,6 +174,13 @@ if __name__ == "__main__":
     # IOcmd_plot(dim = 3)
 
     CBF_plot()
+    CBFConsValue_plot(dim = 0)
+    CBFConsValue_plot(dim = 1)
+    CBFvalue_plot(dim = 0)
+    CBFvalue_plot(dim = 1)
+    CBFDrift_plot(dim = 0)
+    CBFDrift_plot(dim = 1)
+    plt.show()
     # Fr_plot()
     
     # U_plot(dim = 0)
