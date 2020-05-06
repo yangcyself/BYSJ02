@@ -79,7 +79,7 @@ class CTRL:
             NOTE: Each Ctrl component accesses self.properties but cannot set any of those properties
     """
 
-    def __init__(self):
+    def __init__(self,*args,**kwargs):
         self.ctrl_components = {}
         self.ctrl_flags = {}  # whether control components has to refresh their computation
         self.ctrl_param = {}  # parameters of control components
@@ -103,7 +103,11 @@ class CTRL:
     def resetStatic(self):
         self.ctrl_static = {}
 
-    
+    def resetComponents(self):
+        self.ctrl_components = {}
+        self.ctrl_param = {}
+
+
     def _setJointTorques(self):
         """
         ! This method is only to be called in `step`. The interface for set torque is `setJointTorques` 

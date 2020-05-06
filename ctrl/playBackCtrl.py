@@ -7,8 +7,8 @@ class playBackCTRL(CTRL):
     """
 
 
-    def __init__(self,traj):
-        super().__init__()
+    def __init__(self,traj,*args,**kwargs):
+        super().__init__(*args,**kwargs)
         self.traj = traj
         playBackCTRL.playback.reg(self)
         self.trajLength = traj["t"][-1]

@@ -24,8 +24,8 @@ class IOLinearCTRL(CTRL):
     """
 
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
         self.VC_H = np.concatenate([np.zeros((4,3)), np.eye(4)], axis=1)
         self.stepLength = 0.0779 -( -0.0797)
         IOLinearCTRL.IOLin.reg(self)

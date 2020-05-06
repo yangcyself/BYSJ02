@@ -7,8 +7,8 @@ from scipy.optimize import minimize
 
 class CBF_CTRL(CTRL):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
         self.HA = []
         self.Hb = []
         self.Hc = []
