@@ -143,17 +143,36 @@ class CBF_CTRL(CTRL):
 ### UTIL FUNCTION FOR GENERATING CBF ###
 ########################################
 
-def CBF_GEN_conic(dim,a1,b1,c1,dim1,a2,b2,c2,dim2):
-    mc = 10
-    HA_CBF = np.zeros((14,14))
-    HA_CBF[1,1] = mc
-    HA_CBF[1,8] = HA_CBF[8,1] = 1
+def CBF_GEN_conic(dim,mc,*args:(float,float,float,{float, np.array})):
+    """
+    Add  u a u.T + b.T u + c to the CBF
+    arg dim: int     The total dimension of the state, CBF matrix is 2dim x 2dim
+    arg mc:          The 'gamma' of the CBF matrix
+    arg *args: [(a,b,c,u)] x n 
+    arg a,b,c:       The factor 
+    arg u:         union{int, np.array([dim])} The dimension of the constraint
+    """
 
-    # CBF of the body_x
-    HA_CBF[0,0] = -mc * 50
-    HA_CBF[0,7] = HA_CBF[7,0] = -1 * 50
-    Hb_CBF = np.zeros(14)
-    Hc_CBF = -mc * 0.5 * 0.5
+    def vec_u(u):
+        if(type(u)==int):
+            res = np.zeros((dim,1))
+            res[u] = 1
+            return res
+        assert(len(u)==dim)
+        return np.array(u).reshape((-1,1))
+    args = [(a,b,c,vec_u(u)) for (a,b,c,u) in args]
+
+    HA_CBF = np.zeros((2*dim,2*dim))
+    HA_CBF[:dim,:dim] = np.sum(
+        a * mc * u @ u.T for (a,b,c,u) in args)
+    HA_CBF[:dim,dim:] = HA_CBF[dim:,:dim] = np.sum(
+        a * u @ u.T for (a,b,c,u) in args)
+
+    Hb_CBF = np.zeros(2*dim)
+    Hb_CBF[:dim] = np.sum( mc * b * u.reshape(-1) for (a,b,c,u) in args)
+    Hb_CBF[dim:] = np.sum( b * u.reshape(-1) for (a,b,c,u) in args)
+
+    Hc_CBF = np.sum(c for (a,b,c,u) in args)
     
     return HA_CBF,Hb_CBF,Hc_CBF
 
