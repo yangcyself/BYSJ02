@@ -30,6 +30,7 @@ class IOLinearCTRL(CTRL):
         self.stepLength = 0.0779 -( -0.0797)
         IOLinearCTRL.IOLin.reg(self)
         self.LOG_FW = None
+        self.LOG_SWICH_STANCE = False
 
 
     @CTRL_COMPONENT
@@ -49,11 +50,12 @@ class IOLinearCTRL(CTRL):
         redStance = self.ctrl_static["redStance"] = self.ctrl_static.get("redStance",firstFlag)
         lifted = self.ctrl_static["lifted"] = self.ctrl_static.get("lifted",False)
         theta_plus = self.ctrl_static["theta_plus"] = self.ctrl_static.get("theta_plus",self.state[0] - 0.001)
-
+        self.LOG_SWICH_STANCE = False
         # check swing leg lifted
         if lifted:
             # flip flag when the swing leg has contacted with the ground
             if(self.contact_mask[int(redStance)]):
+                self.LOG_SWICH_STANCE = True
                 redStance = self.ctrl_static["redStance"] = not redStance
                 lifted = self.ctrl_static["lifted"] = False
                 theta_plus = self.ctrl_static["theta_plus"] = self.state[0] - 0.001

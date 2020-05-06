@@ -3,8 +3,8 @@ Test the dynamic of the CBF calculation,
     namely: dHx = DHA @ Hx + DHB @ u + DHg
             dBF = dB_b @ u + dB_c
 Run the recorded trajectory and compare the dynamic of BF
-    2020-05-06 23:40:58 dHx passed, dBF passed, 走势一样，real有毛刺， dBF比dHx大两个数量级
-
+    2020-05-06 23:40:58 dHx passed, dBF passed, 走势一样，real有毛刺， dBF主要为ddHx, ddHx 比dHx大两个数量级, ddHx也有毛刺
+        毛刺出现在 腿swing 切换到stance那一下 (毕竟那个碰撞我也没建模)
 """
 
 import sys
@@ -27,8 +27,8 @@ class playBackWalkerCtrl(CBF_WALKER_CTRL, playBackCTRL):
 
 Traj = []
 def callback_traj(obj):
-    #                0      1          2                                    3                            
-    Traj.append((obj.t, obj.playback, (obj.Hx, obj.DHA, obj.DHB, obj.DHg), (obj.HF, obj.dHF)))
+    #                0      1          2                                    3                 4           
+    Traj.append((obj.t, obj.playback, (obj.Hx, obj.DHA, obj.DHB, obj.DHg), (obj.HF, obj.dHF), obj.LOG_SWICH_STANCE))
 def callback_clear():
     Traj = []
 
@@ -53,12 +53,19 @@ init_state = np.array([
 playBackWalkerCtrl.restart()
 
 
-traj = pkl.load(open("D:\\yangcy\\UNVSenior\\Graduation\\GradProject\\RabbitEnv\\data\\Traj\\1588767897.pkl","rb"))
+# traj = pkl.load(open("D:\\yangcy\\UNVSenior\\Graduation\\GradProject\\RabbitEnv\\data\\Traj\\1588767897.pkl","rb"))
+traj = pkl.load(open("data/Traj/1588230736.pkl","rb"))
 ct = playBackWalkerCtrl(traj = traj)
 ct.setState(init_state)
-ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,4)))
-ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,6)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.5,4)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.5,6)))
 ct.callbacks.append(callback_traj)
+
+def drawSwichStancePoint(y = 0):
+    switchPoints = [t[0] for i,t in enumerate(Traj[:-1]) if Traj[i][4] == (1-Traj[i+1][4])]
+    ax = plt.gca()
+    ax.plot(switchPoints,[0]*len(switchPoints),".", label = "switchPoints")
+    # ax.plot()
 
 def plotDHX(dim = 0):
     plt.figure()
@@ -66,6 +73,7 @@ def plotDHX(dim = 0):
     dHx = (Hx[1:] - Hx[:-1])/GP.DT
     plt.plot([t[0] for t in Traj[:-1]], dHx[:,dim], label = "real")
     plt.plot([t[0] for t in Traj], [(t[2][1] @ t[2][0] + t[2][2] @ t[1] + t[2][3])[dim] for t in Traj], label = "Calculated")
+    drawSwichStancePoint()
     plt.title("plotDHX dim%d"%dim)
     plt.legend()
     plt.grid()
@@ -80,7 +88,17 @@ def plotDBF(dim = 0):
     dBF = (BF[1:] - BF[:-1])/GP.DT
     plt.plot([t[0] for t in Traj[:-1]], dBF[:,dim], label = "real")
     plt.plot([t[0] for t in Traj], [(t[3][1][dim][0] @ t[1] + t[3][1][dim][1]) for t in Traj], label = "Calculated")
+    drawSwichStancePoint()
     plt.title("plotDBF dim%d"%dim)
+    plt.legend()
+    plt.grid()
+    plt.draw()
+
+def plotU(dim = 0):
+    plt.figure()
+    plt.plot([t[0] for t in Traj[:-1]], [t[1][dim] for t in Traj[:-1]] , label = "U")
+    drawSwichStancePoint()
+    plt.title("plotU dim%d"%dim)
     plt.legend()
     plt.grid()
     plt.draw()
@@ -91,8 +109,12 @@ if __name__ == "__main__":
     # ct.playstate(1)
     plotDHX(dim=4)
     plotDHX(dim=6)
-
+    plotDHX(dim=14)
+    plotDHX(dim=16)
 
     plotDBF(dim=0)
     plotDBF(dim=1)
+
+    plotU(dim = 4)
+    plotU(dim = 6)
     plt.show()
