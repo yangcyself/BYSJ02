@@ -11,7 +11,7 @@ class GaussionProcess:
     arg: sigma2 The prior std^2 of the observation
     """
     def __init__(self, kernel = None, sigma2 = 0):
-        self.kernel = lambda x,y: np.exp(-np.linalg.norm(x-y)) if kernel is None else kernel
+        self.kernel = (lambda x,y: np.exp(-np.linalg.norm(x-y))) if kernel is None else kernel
         self.sigma2 = sigma2
         self.K = np.array([[]]) # the kernel matrix of already observed points
         self.kfunlist = []
