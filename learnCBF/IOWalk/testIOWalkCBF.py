@@ -48,25 +48,23 @@ CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
-Polyparameter = json.load(open("data/CBF/weight_WithB_2020-05-03-23_27_55.json","r"))
+Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
 
 # Make the init_state positive in CBF
 
 ct.resetFlags()
 IOLinearCTRL.state.set(ct,init_state)
 IOLinearCTRL.contact_mask.set(ct,np.array((True,False)))
-HA_CBF_,Hb_CBF_,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
-HA_CBF, Hb_CBF = np.zeros((20,20)), np.zeros(20)
-HA_CBF[1:,1:] = HA_CBF_
-Hb_CBF[1:] = Hb_CBF_
+HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
 sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
+assert(sign == 1)
 HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
-# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
+ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
 # add CBF to constraint on the leg
-ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,4)))
-ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,6)))
+# ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,4)))
+# ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,6)))
 
 Traj = []
 def callback_traj(obj):
@@ -168,18 +166,18 @@ if __name__ == "__main__":
         } ,open(dumpname,"wb"))
         s.add_info("trajlog",dumpname)
 
-    # IOcmd_plot(dim = 0)
-    # IOcmd_plot(dim = 1)
-    # IOcmd_plot(dim = 2)
-    # IOcmd_plot(dim = 3)
+    IOcmd_plot(dim = 0)
+    IOcmd_plot(dim = 1)
+    IOcmd_plot(dim = 2)
+    IOcmd_plot(dim = 3)
 
     CBF_plot()
-    CBFConsValue_plot(dim = 0)
-    CBFConsValue_plot(dim = 1)
-    CBFvalue_plot(dim = 0)
-    CBFvalue_plot(dim = 1)
-    CBFDrift_plot(dim = 0)
-    CBFDrift_plot(dim = 1)
+    # CBFConsValue_plot(dim = 0)
+    # CBFConsValue_plot(dim = 1)
+    # CBFvalue_plot(dim = 0)
+    # CBFvalue_plot(dim = 1)
+    # CBFDrift_plot(dim = 0)
+    # CBFDrift_plot(dim = 1)
     plt.show()
     # Fr_plot()
     

@@ -114,7 +114,7 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20):
                     for x,xa,u,A,B,g in feasiblePoints])
     # # TODO
     # def symmetricCons(w):
-    #     pass
+    #     return
 
     options = {"maxiter" : 500, "disp"    : True}
     lenx0 = int((dim+1)*dim/2 + dim + 1)
@@ -124,6 +124,7 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20):
                    {'type':'ineq','fun':feasibleCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 100
+    bounds[0,:] *= 0 # the first dim `x` 
 
     res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
                 constraints=constraints, method =  'SLSQP') # 'trust-constr' , "SLSQP"
@@ -161,11 +162,7 @@ class FitCBFSession(FitCBFSession_t):
             self.X += list(data['danger'])
             self.y += [ -1 ] * len(data['danger'])
 
-        self.X,self.u = [x for x,u in self.X], [u for x,u in self.X]
-
-        self.X_ = np.array(self.X)[:,1:] # X_ is the 
-        self.X = np.ones_like(self.X)
-        self.X[:,1:] = self.X_ # set the first row of X to be 1
+        self.X,self.u = np.array([x for x,u in self.X]), np.array([u for x,u in self.X])
 
         self.resultFile = "data/CBF/%s_%s.json"%(name,self._storFileName)
 
@@ -181,11 +178,17 @@ class FitCBFSession(FitCBFSession_t):
     def body(self):
         self._startTime = datetime.datetime.now()
         if(self.algorithm == "default"):
+            self.X_ = np.array(self.X)[:,1:] # X_ is the 
+            self.X = np.ones_like(self.X)
+            self.X[:,1:] = self.X_ # set the first row of X to be 1, otherwise the scipy SVM cannot fit the vector b
             A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1]-1, class_weight = self.class_weight)
+            test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
+
         elif(self.algorithm == "feasible"):
-            A,b,c,x0 =  fitFeasibleCBF(np.array(self.X),self.y,self.u,dim=self.X.shape[1]-1)
+            A,b,c,x0 =  fitFeasibleCBF(np.array(self.X),self.y,self.u,dim=self.X.shape[1])
+            test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
+
         dumpJson(A,b,c,self.resultFile)
-        test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
         self.add_info("Test:TruePositive",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==1])/sum(np.array(self.y)==1)))
         self.add_info("Test:TrueNegative",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==-1])/sum(np.array(self.y)==-1)))
 
