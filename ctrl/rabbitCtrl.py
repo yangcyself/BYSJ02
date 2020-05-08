@@ -187,7 +187,7 @@ class CTRL:
         return contact_mask
 
     @CTRL_COMPONENT
-    def gc_mask(self,constant = None):
+    def gc_mask(self,constant = None,**kwargs):
         """
         represening which toe need the ground contact constraint
             The default case is the contacting point. However, this may not be the case when the foot tries to lift

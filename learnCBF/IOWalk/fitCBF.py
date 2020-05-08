@@ -8,7 +8,9 @@ import json
 import datetime
 from ExperimentSecretary.Core import Session
 
-
+import sys
+sys.path.append(".")
+from learnCBF.FittingUtil import kernel
 sqeuclidean = lambda x: np.inner(x, x) # L2 NORM SQUARE
 
 import globalParameters as GP
@@ -70,57 +72,19 @@ def getDynamic(x):
 ###############################
 
 # Add more constraints to the fitting problem
-class kernel:
-    """
-        a map to some higher dim space. E.g (x,y) -> (x^2,y^2,x,y)
-    """
-    @staticmethod
-    def augment(x):
-        """
-            input is either 1dim dataponit, or a matrix where each row is a datapoint
-            return the augmented matrix, where each row is the feature of a datapoint
-        """
-        x = np.array(x)
-        if(x.ndim==1):
-            x  = x.reshape((1,-1))
-        x = x.T
-        return np.concatenate([[a*b for i,a in enumerate(x) for b in x[i:] ],x,np.ones((1,x.shape[1]))],axis = 0).T
-
-    @staticmethod
-    def jac(x):
-        """
-            input is 1dim dataponit
-            return the jacobian of this datapoint
-        """
-        x = np.array(x)
-        return np.concatenate([ [ [(a if k==j+i else 0) + (b if k==i else 0)  for k in range(len(x))] 
-                                for i,a in enumerate(x) for j,b in enumerate(x[i:]) ] ,np.eye(len(x)),np.zeros((1,len(x)))],axis=0)
-    
-    @staticmethod
-    def GetParam(w,dim=20):
-        """
-            input the trained w
-            Return the A, b, c of x^TAx + b^T x + c
-        """
-        print("w:",w)
-        A = np.array([[w[min(i,j)*dim - int(min(i,j)*(min(i,j)-1)/2) - min(i,j) + max(i,j)]/(1 if(i==j)else 2)  for j in range(dim)] for i in range(dim)])
-        b = w[-dim-1:-1]
-        c = w[-1]
-        return A,b,c
 
 
-
-def fitCBF(X, y, X_c,dim = 20, x0 = None):
+def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20):
     """
         X: tested datapoints
         y: 1 or -1; 1 means in CBF's upper level set
-        X_c: The datapoints that needs to ensure exits u s.t. dB(x,u) > 0
+        u: The input from the sample of each `X`, only the state with y=1 is used
+        mc: gamma
 
         cast it into an optimization problem, where
-        min_{w,b,u}  ||w||+||u||
+        min_{w,b}  ||w||
         s.t.    y_i(x_i^T w + b) > 1 //SVM condition
-                y_i(dB(x_i,u)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
-                u_min < u < u_max
+                y_i(dB(x_i,u_i)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
     """
     
     print("START")
@@ -141,58 +105,31 @@ def fitCBF(X, y, X_c,dim = 20, x0 = None):
         return y.reshape((-1,1))*X_aug
 
     # X_c_aug = kernel.augment(X_c) if len(X_c) else []
-
-    def completeCons(w):
-        # the points at the boundary of the CBF needs to have a solution that dB > 0
-        return np.array([1]+[w.T @ kernel.jac(x) @ Dyn_A @ x  +  
-                    MAX_INPUT * np.linalg.norm(Dyn_B.T @ kernel.jac(x).T @ w, ord = 1) for x in X_c])
+    feasiblePoints = [(x,xa,u,*getDynamic(x)) for x,xa,y,u in  zip(X,X_aug,y,u_list) if y ==1]
+    
+    # [w.T @ kernel.jac(x) @ Dyn_A @ x  +  
+    #                 MAX_INPUT * np.linalg.norm(Dyn_B.T @ kernel.jac(x).T @ w, ord = 1) for x in X_c])
+    def feasibleCons(w):
+        return np.array([w.T @ kernel.jac(x) @ (A @ x + B @ u + g) + mc * xa @ w
+                    for x,xa,u,A,B,g in feasiblePoints])
+    # # TODO
+    # def symmetricCons(w):
+    #     pass
 
     options = {"maxiter" : 500, "disp"    : True}
     lenx0 = int((dim+1)*dim/2 + dim + 1)
-    x0 = np.random.random(lenx0) if x0 is None else x0
-    
+    x0 = np.random.random(lenx0)
+
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
-                   {'type':'ineq','fun':completeCons}]
+                   {'type':'ineq','fun':feasibleCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 100
-    bounds[-5:-1,:] *=0
 
     res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
                 constraints=constraints, method =  'SLSQP') # 'trust-constr' , "SLSQP"
 
     # print("SVM Constraint:\n", SVMcons(res.x[:len(x0)]))
     return (*kernel.GetParam(res.x), res.x)
-
-
-def fitCompleteCBF(X,y,dim = 20):
-    """
-        call the `fitCBF` iteratively, each step augment the dataset with some data points 
-            that makes the optimization of u hard
-    """
-    x0 = None
-    X_c = []
-    for i in range(10):
-        HA,Hb,Hc, x0 = fitCBF(X,y,X_c,dim,x0)
-    
-        def obj(x):
-            DA,DB,Dg = getDynamic(x)
-            return 2 * x.T @ HA @ (DA @ x + Dg) \
-                    + Hb @ DA @ x + Hb @ Dg \
-                    + GP.MAXTORQUE * np.abs(2 * DB.T @ HA @ x + DB.T @ Hb,ord = 1)
-
-        def cons(x):
-            return x.T @ HA @ x + Hb.T @ x + Hc
-
-        constraints = {'type':'eq','fun': cons, "jac":jacobian(cons)}
-        
-        bounds = np.ones((4,2)) * np.array([[-1,1]]) * 3
-        
-        X_c = [ minimize(obj, np.random.random(4) * 3, bounds = bounds, #jac=jac, 
-                        constraints=constraints, method =  'SLSQP').x for i in range(1) ]
-        print([obj(x) for x in X_c])
-        # print(X_c)
-    return A,b,c
-
 
 
 
@@ -208,12 +145,13 @@ class FitCBFSession_t(Session):
     pass
 
 class FitCBFSession(FitCBFSession_t):
-    def __init__(self, loaddir, name = "tmp", gamma = 9999, class_weight = None):
+    def __init__(self, loaddir, name = "tmp", gamma = 9999, class_weight = None, algorithm = "default"):
         super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []
         self.loadedFile = []
         self.gamma = gamma
+        self.algorithm = algorithm.lower()
         self.class_weight = class_weight
         for f in glob(os.path.join(loaddir,"*.pkl"))[:40]:
             data = pkl.load(open(f,"rb"))
@@ -222,6 +160,8 @@ class FitCBFSession(FitCBFSession_t):
             self.y += [ 1 ] * len(data['safe'])
             self.X += list(data['danger'])
             self.y += [ -1 ] * len(data['danger'])
+
+        self.X,self.u = [x for x,u in self.X], [u for x,u in self.X]
 
         self.X_ = np.array(self.X)[:,1:] # X_ is the 
         self.X = np.ones_like(self.X)
@@ -240,19 +180,21 @@ class FitCBFSession(FitCBFSession_t):
 
     def body(self):
         self._startTime = datetime.datetime.now()
-        A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1]-1, class_weight = self.class_weight)
+        if(self.algorithm == "default"):
+            A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1]-1, class_weight = self.class_weight)
+        elif(self.algorithm == "feasible"):
+            A,b,c,x0 =  fitFeasibleCBF(np.array(self.X),self.y,self.u,dim=self.X.shape[1]-1)
         dumpJson(A,b,c,self.resultFile)
         test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
         self.add_info("Test:TruePositive",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==1])/sum(np.array(self.y)==1)))
         self.add_info("Test:TrueNegative",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==-1])/sum(np.array(self.y)==-1)))
 
     
-
     @FitCBFSession_t.column
     def timeComsumption(self):
         return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
-    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-01-12_41_24",
-        name = "weight_WithB",class_weight={1: 0.3, -1: 0.7})
+    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-07-23_33_30",
+        name = "Feasible",algorithm="feasible")
     s()
