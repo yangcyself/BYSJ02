@@ -395,10 +395,6 @@ class CTRL:
             p.stepSimulation()
 
 
-
-
-
-
 dt = GP.DT
 if GP.STARTSIMULATION:
 

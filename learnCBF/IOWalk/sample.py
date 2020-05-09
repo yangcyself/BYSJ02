@@ -37,8 +37,8 @@ def reset(ct):
     -0.284872086257488,
     1.19997002232031,
     -2.18405395105742,
-    3.29500361015889,
-    ])
+    3.29500361015889])
+
 
 def SampleTraj(BalphaStd,Balpha=Balpha):
     ct = CBF_WALKER_CTRL()
@@ -70,6 +70,7 @@ def storTraj(Traj,path):
         "u": [t[3] for t in Traj]
     } ,open(dumpname,"wb"))
 
+
 def storSample(SafeSamples,DangerSamples,path):
     dumpname = os.path.abspath(os.path.join(path,"%d.pkl"%time.time()))
     pkl.dump({"safe":SafeSamples,"danger":DangerSamples}, open(dumpname,"wb"))
@@ -79,7 +80,7 @@ class SampleSession_t(Session):
     """
         define the Session class to record the information
     """
-    def __init__(self, BalphaStd = 0.03, Ntraj = 100, Nsample = 10, T_Threshold = 1.3, safe_Threshold=1, unsafe_Threshold=0.5, readTraj = None):
+    def __init__(self, BalphaStd = 0.03, Ntraj = 100, Nsample = 10, T_Threshold = 1.6, safe_Threshold=1, unsafe_Threshold=0.5, readTraj = None):
         """
         args: BalphaStd the diviation acted on the alpha of the Beizer function
         args: Ntraj     The number of trajectory simulated
@@ -100,6 +101,8 @@ class SampleSession_t(Session):
         self.TrajLengths = []
         self.safe_Threshold = safe_Threshold
         self.unsafe_Threshold = unsafe_Threshold
+        kernel = lambda x,y: np.exp(-np.linalg.norm(x[1:]-y[1:])) # the kernel function ignores the x dimension
+        self.GaussionP = GaussionProcess(kernel = kernel, sigma2=0.01) 
 
         self.add_info("BalphaStd",self.BalphaStd)
         self.add_info("storTrajPath",self.storTrajPath)
@@ -116,66 +119,70 @@ class SampleSession_t(Session):
         self.trajCount = 0
         self.sampleCount_safe = 0
         self.sampleCount_danger = 0
-        kernel = lambda x,y: np.exp(-np.linalg.norm(x[1:]-y[1:])) # the kernel function ignores the x dimension
-        G = GaussionProcess(kernel = kernel, sigma2=0.1) 
+        G = self.GaussionP
+        NoKeyboardInterrupt = True
         for i in range(self.Ntraj):
-            NewTraj = True
+            assert NoKeyboardInterrupt, "KeyboardInterrupt caught"
             try:
-                Traj = pkl.load(open(glob(os.path.join(self.readTraj,"*.pkl"))[i],"rb"))
-                Traj = [(t,s,x,u) for t,s,x,u in zip(Traj["t"], Traj["state"], Traj["Hx"], Traj["u"])]
-                print("loaded:", glob(os.path.join(self.readTraj,"*.pkl"))[i])
-                NewTraj = False
-            except Exception:
-                print("run simulation")
-                Traj = SampleTraj(self.BalphaStd)
+                NewTraj = True
+                try:
+                    Traj = pkl.load(open(glob(os.path.join(self.readTraj,"*.pkl"))[i],"rb"))
+                    Traj = [(t,s,x,u) for t,s,x,u in zip(Traj["t"], Traj["state"], Traj["Hx"], Traj["u"])]
+                    print("loaded:", glob(os.path.join(self.readTraj,"*.pkl"))[i])
+                    NewTraj = False
+                except Exception:
+                    print("run simulation")
+                    Traj = SampleTraj(self.BalphaStd)
 
-            T_list = np.array([t[0] for t in Traj])
-            Hx_list = np.array([t[2] for t in Traj])
-            u_list = np.array([t[3] for t in Traj])
+                T_list = np.array([t[0] for t in Traj])
+                Hx_list = np.array([t[2] for t in Traj])
+                u_list = np.array([t[3] for t in Traj])
 
-            T_whole = T_list[-1]
-            if(T_whole < self.T_Threshold):
-                continue
+                T_whole = T_list[-1]
+                if(T_whole < self.T_Threshold):
+                    continue
 
-            self.TrajLengths.append(T_whole) 
-            if NewTraj:
-                storTraj(Traj, self.storTrajPath)
-            self.trajCount += 1
+                self.TrajLengths.append(T_whole) 
+                if NewTraj:
+                    storTraj(Traj, self.storTrajPath)
+                self.trajCount += 1
 
-            # sample states from the traj
-            # [0, T_safe] are times for safe samples, [T_danger, T_whole] are times for danger samples
-            T_safe = T_whole - self.safe_Threshold
-            T_danger = T_whole - self.unsafe_Threshold
-            ind_safe = np.argmin(abs(T_list-T_safe))
-            ind_danger = np.argmin(abs(T_list-T_danger))
-            
-            # Use Gaussian Process sampler to get datapoints with most information
-            SafeSamples = []
-            for sample, u in zip(Hx_list[:ind_safe],u_list[:ind_safe]):
-                mu,std = G(sample)
-                p = 1 - np.math.exp(-((mu-1)**2)/std)
-                if(np.random.rand() < p/ind_safe*self.Nsamples):
-                    G.addObs(sample,1)
-                    self.sampleCount_safe += 1
-                    SafeSamples.append((sample,u))
-                    sample[[3,4,5,6, 13,14,15,16]] = sample[[5,6,3,4, 15,16,13,14]]
-                    G.addObs(sample,1)
-                    self.sampleCount_safe += 1
-                    SafeSamples.append((sample,u))
-            
-            DangerSamples = []
-            for sample,u in zip(Hx_list[ind_danger:], u_list[ind_danger:]):
-                mu,std = G(sample)
-                p = 1 - np.math.exp(-((mu + 1)**2)/std)
-                if(np.random.rand() < p/(len(Hx_list)-ind_danger)*self.Nsamples):
-                    G.addObs(sample,-1)
-                    self.sampleCount_danger += 1
-                    DangerSamples.append((sample,u))
-                    sample[[3,4,5,6, 13,14,15,16]] = sample[[5,6,3,4, 15,16,13,14]]
-                    G.addObs(sample,-1)
-                    self.sampleCount_danger += 1
-                    DangerSamples.append((sample,u))
-            storSample(SafeSamples,DangerSamples,self.storSamplePath)
+                # sample states from the traj
+                # [0, T_safe] are times for safe samples, [T_danger, T_whole] are times for danger samples
+                T_safe = T_whole - self.safe_Threshold
+                T_danger = T_whole - self.unsafe_Threshold
+                ind_safe = np.argmin(abs(T_list-T_safe))
+                ind_danger = np.argmin(abs(T_list-T_danger))
+                
+                # Use Gaussian Process sampler to get datapoints with most information
+                SafeSamples = []
+                for sample, u in zip(Hx_list[:ind_safe],u_list[:ind_safe]):
+                    mu,std = G(sample)
+                    p = 1 - np.math.exp(-((mu-1)**2)/std)
+                    if(np.random.rand() < p/ind_safe*self.Nsamples):
+                        G.addObs(sample,1)
+                        self.sampleCount_safe += 1
+                        SafeSamples.append((sample,u))
+                        sample[[3,4,5,6, 13,14,15,16]] = sample[[5,6,3,4, 15,16,13,14]]
+                        G.addObs(sample,1)
+                        self.sampleCount_safe += 1
+                        SafeSamples.append((sample,u))
+                
+                DangerSamples = []
+                for sample,u in zip(Hx_list[ind_danger:], u_list[ind_danger:]):
+                    mu,std = G(sample)
+                    p = 1 - np.math.exp(-((mu + 1)**2)/std)
+                    if(np.random.rand() < p/(len(Hx_list)-ind_danger)*self.Nsamples):
+                        G.addObs(sample,-1)
+                        self.sampleCount_danger += 1
+                        DangerSamples.append((sample,u))
+                        sample[[3,4,5,6, 13,14,15,16]] = sample[[5,6,3,4, 15,16,13,14]]
+                        G.addObs(sample,-1)
+                        self.sampleCount_danger += 1
+                        DangerSamples.append((sample,u))
+                storSample(SafeSamples,DangerSamples,self.storSamplePath)
+            except KeyboardInterrupt as ex:
+                NoKeyboardInterrupt = False
 
 
 
@@ -195,6 +202,11 @@ class SampleSession(SampleSession_t):
     @SampleSession_t.column
     def sampleCount_danger(self):
         return self.sampleCount_danger
+    @SampleSession_t.column
+    def storGaussianProcessPath(self):
+        storGPpath = "./data/gaussian/%s.pkl"%(self._storFileName)
+        pkl.dump(self.GaussionP,open(storGPpath,"wb"))
+        return storGPpath
 
 CBF_WALKER_CTRL.restart()
             
