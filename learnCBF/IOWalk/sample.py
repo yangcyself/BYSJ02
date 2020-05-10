@@ -7,7 +7,7 @@ from ctrl.CBFWalker import *
 import matplotlib.pyplot as plt
 from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
-import pickle as pkl
+import dill as pkl
 from glob import glob
 
 from learnCBF.SampleUtil import GaussionProcess
