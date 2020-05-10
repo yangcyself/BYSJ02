@@ -74,7 +74,7 @@ def getDynamic(x):
 # Add more constraints to the fitting problem
 
 
-def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20):
+def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
     """
         X: tested datapoints
         y: 1 or -1; 1 means in CBF's upper level set
@@ -88,46 +88,70 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20):
     """
     
     print("START")
+    class_weight = {-1:1, 1:1} if class_weight is None else class_weight
+
     def obj(w):
-        return sqeuclidean(w[:-1])
+        w,c = w[:lenw],w[lenw:]
+        return sqeuclidean(w[:-1]) + gamma * np.sum(c)
     def grad(w):
+        w,c = w[:lenw],w[lenw:]
         ans = 2*w
         ans[-1] = 0
-        return ans.reshape((1,-1))
+        ans = np.array(list(ans)+list(gamma*(c>0)))
+        return ans.reshape((1,-1)) 
 
     X_aug = kernel.augment(X)
     y = np.array(y).reshape((-1))
-
+    lenw = int((dim+1)*dim/2 + dim + 1)
+    print("X_aug shape", X_aug.shape)
+    print("y shape", y.shape)
     def SVMcons(w):
-        return y * (X_aug @ w) - 1
+        w,c = w[:lenw],w[lenw:]
+        return y * (X_aug @ w) - 1 + c
     def SVMjac(w):
-        # print(w)
-        return y.reshape((-1,1))*X_aug
+        w,c = w[:lenw],w[lenw:]
+        return np.concatenate([y.reshape((-1,1))*X_aug, np.eye(len(c)) ],axis=1)
+    def SVMCcons(w):
+        w,c = w[:lenw],w[lenw:]
+        return c
+    def SVMCjac(w):
+        w,c = w[:lenw],w[lenw:]
+        return np.concatenate([np.zeros((len(c),len(w))), np.eye(len(c)) ],axis=1)
+
 
     # X_c_aug = kernel.augment(X_c) if len(X_c) else []
     feasiblePoints = [(x,xa,u,*getDynamic(x)) for x,xa,y,u in  zip(X,X_aug,y,u_list) if y ==1]
-    
+    print("len(feasiblePoints)",len(feasiblePoints))
     # [w.T @ kernel.jac(x) @ Dyn_A @ x  +  
     #                 MAX_INPUT * np.linalg.norm(Dyn_B.T @ kernel.jac(x).T @ w, ord = 1) for x in X_c])
+
     def feasibleCons(w):
+        w,c = w[:lenw],w[lenw:]
         return np.array([w.T @ kernel.jac(x) @ (A @ x + B @ u + g) + mc * xa @ w
                     for x,xa,u,A,B,g in feasiblePoints])
+
+    def feasibleJac(w):        
+        w,c = w[:lenw],w[lenw:]
+        return np.concatenate([ np.array(list(kernel.jac(x) @ (A @ x + B @ u + g) + mc * xa)+[0]*len(c)).reshape((1,-1))
+                    for x,xa,u,A,B,g in feasiblePoints],axis=0)
+
     # # TODO
     # def symmetricCons(w):
     #     return
 
-    options = {"maxiter" : 500, "disp"    : True}
-    lenx0 = int((dim+1)*dim/2 + dim + 1)
+    options = {"maxiter" : 500, "disp"    : True, "verbose":1}
+    lenx0 = lenw + len(y)
     x0 = np.random.random(lenx0)
 
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
+                   {'type':'ineq','fun':SVMCcons, "jac":SVMCjac},
                    {'type':'ineq','fun':feasibleCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 100
     bounds[0,:] *= 0 # the first dim `x` 
 
     res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
-                constraints=constraints, method =  'SLSQP') # 'trust-constr' , "SLSQP"
+                constraints=constraints, )#method =  'SLSQP') # 'trust-constr' , "SLSQP"
 
     # print("SVM Constraint:\n", SVMcons(res.x[:len(x0)]))
     return (*kernel.GetParam(res.x), res.x)
@@ -146,7 +170,7 @@ class FitCBFSession_t(Session):
     pass
 
 class FitCBFSession(FitCBFSession_t):
-    def __init__(self, loaddir, name = "tmp", gamma = 9999, class_weight = None, algorithm = "default"):
+    def __init__(self, loaddir, name = "tmp", gamma = 9999, class_weight = None, algorithm = "default", trainNum = 10):
         super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []
@@ -154,44 +178,62 @@ class FitCBFSession(FitCBFSession_t):
         self.gamma = gamma
         self.algorithm = algorithm.lower()
         self.class_weight = class_weight
-        for f in glob(os.path.join(loaddir,"*.pkl"))[:40]:
+        self.trainNum = trainNum
+        for f in glob(os.path.join(loaddir,"*.pkl")):
             data = pkl.load(open(f,"rb"))
             self.loadedFile.append(f)
             self.X += list(data['safe'])
             self.y += [ 1 ] * len(data['safe'])
             self.X += list(data['danger'])
             self.y += [ -1 ] * len(data['danger'])
-
-        self.X,self.u = np.array([x for x,u in self.X]), np.array([u for x,u in self.X])
+        
+        self.X_train, self.y_train, self.u_train = np.array([x for x,u in self.X[:self.trainNum]]), self.y[:self.trainNum], np.array([u for x,u in self.X[:self.trainNum]])
+        self.X_test, self.y_test, self.u_test = np.array([x for x,u in self.X[self.trainNum:]]), self.y[self.trainNum:],  np.array([u for x,u in self.X[self.trainNum:]])
+        self.X = np.array([x for x,u in self.X])
 
         self.resultFile = "data/CBF/%s_%s.json"%(name,self._storFileName)
 
         self.add_info("resultFile",self.resultFile)
         self.add_info("Loaded File",self.loadedFile)
         self.add_info("Total Points",len(self.X))
+        self.add_info("Total Training Points",len(self.X_train))
         self.add_info("X dim",self.X.shape[1])
         self.add_info("number Positive",int(sum(np.array(self.y)==1)))
         self.add_info("gamma",self.gamma)
         self.add_info("class_weight",self.class_weight)
+        self.add_info("trainNum",self.trainNum)
     
 
     def body(self):
-        self._startTime = datetime.datetime.now()
-        if(self.algorithm == "default"):
-            self.X_ = np.array(self.X)[:,1:] # X_ is the 
-            self.X = np.ones_like(self.X)
-            self.X[:,1:] = self.X_ # set the first row of X to be 1, otherwise the scipy SVM cannot fit the vector b
-            A,b,c = SVM_factors(np.array(self.X),self.y,gamma=self.gamma, dim=self.X.shape[1]-1, class_weight = self.class_weight)
-            test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
+        NoKeyboardInterrupt = True
+        try:
+            self._startTime = datetime.datetime.now()
+            if(self.algorithm == "default"):
+                X_ = np.array(self.X_train)[:,1:] # X_ is the 
+                X = np.ones_like(X)
+                X[:,1:] = X_ # set the first row of X to be 1, otherwise the scipy SVM cannot fit the vector b
+                A_,b_,c = SVM_factors(np.array(X),self.y_train,gamma=self.gamma, dim=self.X_train.shape[1]-1, class_weight = self.class_weight)
+                A = np.zeros((A_.shape[0]+1, A_.shape[1]+1))
+                A[1:,1:] = A_
+                b = np.zeros(len(b_)+1)
+                b[1:] = b_
+                Traintest = [ x.T @ A @ x + b.T @ x + c for x in self.X_train] 
+                Testtest = [x.T @ A @ x + b.T @ x + c for x in self.X_test]
 
-        elif(self.algorithm == "feasible"):
-            A,b,c,x0 =  fitFeasibleCBF(np.array(self.X),self.y,self.u,dim=self.X.shape[1])
-            test = [ x.T @ A @ x + b.T @ x + c for x in self.X_] 
+            elif(self.algorithm == "feasible"):
+                A,b,c,x0 =  fitFeasibleCBF(np.array(self.X_train),self.y_train,self.u_train,dim=self.X_train.shape[1], gamma=self.gamma, class_weight = self.class_weight)
+                Traintest = [ x.T @ A @ x + b.T @ x + c for x in self.X_train]
+                Testtest = [ x.T @ A @ x + b.T @ x + c for x in self.X_test]
 
-        dumpJson(A,b,c,self.resultFile)
-        self.add_info("Test:TruePositive",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==1])/sum(np.array(self.y)==1)))
-        self.add_info("Test:TrueNegative",float(np.sum([f*y >0 for f,y in zip(test,self.y) if y==-1])/sum(np.array(self.y)==-1)))
-
+            dumpJson(A,b,c,self.resultFile)
+            self.add_info("TrainingTest:TruePositive",float(np.sum([f*y >0 for f,y in zip(Traintest,self.y_train) if y==1])/sum(np.array(self.y_train)==1)))
+            self.add_info("TrainingTest:TrueNegative",float(np.sum([f*y >0 for f,y in zip(Traintest,self.y_train) if y==-1])/sum(np.array(self.y_train)==-1)))
+            self.add_info("TestingTest:TruePositive",float(np.sum([f*y >0 for f,y in zip(Testtest,self.y_test) if y==1])/sum(np.array(self.y_test)==1)))
+            self.add_info("TestingTest:TrueNegative",float(np.sum([f*y >0 for f,y in zip(Testtest,self.y_test) if y==-1])/sum(np.array(self.y_test)==-1)))
+        
+        except KeyboardInterrupt as ex:
+            NoKeyboardInterrupt = False
+        assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
     
     @FitCBFSession_t.column
     def timeComsumption(self):
@@ -199,5 +241,5 @@ class FitCBFSession(FitCBFSession_t):
 
 if __name__ == '__main__':
     s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-10-09_03_08",
-        name = "Feasible",algorithm="feasible")
+        name = "Feasible",algorithm="feasible", trainNum=800)
     s()
