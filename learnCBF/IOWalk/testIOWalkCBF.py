@@ -162,6 +162,7 @@ if __name__ == "__main__":
         pkl.dump({
             "t": [t[0] for t in Traj],
             "state": [t[1] for t in Traj],
+            "Hx": [t[2] for t in Traj],
             "u": [t[5] for t in Traj]
         } ,open(dumpname,"wb"))
         s.add_info("trajlog",dumpname)

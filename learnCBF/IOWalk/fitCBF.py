@@ -198,6 +198,6 @@ class FitCBFSession(FitCBFSession_t):
         return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
-    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-07-23_33_30",
+    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-10-09_03_08",
         name = "Feasible",algorithm="feasible")
     s()
