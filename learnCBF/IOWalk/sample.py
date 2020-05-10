@@ -99,7 +99,7 @@ class SampleSession_t(Session):
         self.Nsamples = Nsample
         self.Ntraj = Ntraj
         self.TrajLengths = []
-        self.GPprobTrace = [1]
+        self.GPprobTrace = []
         self.safe_Threshold = safe_Threshold
         self.unsafe_Threshold = unsafe_Threshold
         kernel = lambda x,y: np.exp(-np.linalg.norm(x[1:]-y[1:])) # the kernel function ignores the x dimension
@@ -160,7 +160,7 @@ class SampleSession_t(Session):
                 for sample, u in zip(Hx_list[:ind_safe],u_list[:ind_safe]):
                     mu,std = G(sample)
                     p = 1 - np.math.exp(-((mu-1)**2)/std)
-                    self.GPprobTrace.append(p)
+                    self.GPprobTrace.append((p,mu,std))
                     if(np.random.rand() < p/ind_safe*self.Nsamples):
                         G.addObs(sample,1)
                         self.sampleCount_safe += 1
@@ -174,7 +174,7 @@ class SampleSession_t(Session):
                 for sample,u in zip(Hx_list[ind_danger:], u_list[ind_danger:]):
                     mu,std = G(sample)
                     p = 1 - np.math.exp(-((mu + 1)**2)/std)
-                    self.GPprobTrace.append(p)
+                    self.GPprobTrace.append((p,mu,std))
                     if(np.random.rand() < p/(len(Hx_list)-ind_danger)*self.Nsamples):
                         G.addObs(sample,-1)
                         self.sampleCount_danger += 1
