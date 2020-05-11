@@ -160,10 +160,12 @@ class SampleSession_t(Session):
                 
                 # Use Gaussian Process sampler to get datapoints with most information
                 SafeSamples = []
+                SafeProbTrace = []
+                DangerProbTrace = []
                 for sample, u in zip(Hx_list[:ind_safe],u_list[:ind_safe]):
                     mu,std = G(sample)
                     p = 1 - np.math.exp(-((mu-1)**2)/std)
-                    self.GPprobTrace.append((p,mu,std))
+                    SafeProbTrace.append((p,mu,std))
                     if(np.random.rand() < p/ind_safe*self.Nsamples):
                         G.addObs(sample,1)
                         self.sampleCount_safe += 1
@@ -178,7 +180,7 @@ class SampleSession_t(Session):
                 for sample,u in zip(Hx_list[ind_danger:], u_list[ind_danger:]):
                     mu,std = G(sample)
                     p = 1 - np.math.exp(-((mu + 1)**2)/std)
-                    self.GPprobTrace.append((p,mu,std))
+                    DangerProbTrace.append((p,mu,std))
                     if(np.random.rand() < p/(len(Hx_list)-ind_danger)*self.Nsamples):
                         G.addObs(sample,-1)
                         self.sampleCount_danger += 1
@@ -189,6 +191,7 @@ class SampleSession_t(Session):
                         self.sampleCount_danger += 1
                         DangerSamples.append((sample,u))
                 storSample(SafeSamples,DangerSamples,self.storSamplePath)
+                self.GPprobTrace.append([SafeProbTrace,DangerProbTrace])
             except KeyboardInterrupt as ex:
                 NoKeyboardInterrupt = False
 

@@ -31,5 +31,6 @@ mu_lower_list = mu_list - std_list
 plt.plot(t_list, mu_list)
 plt.plot(t_list, mu_upper_list,c="g",alpha = 0.7)
 plt.plot(t_list, mu_lower_list,c="g",alpha = 0.7)
-plt.savefig(os.path.join("data/pics/guassianProcessTest", "%s.png"%str(int(time.time()))))
+# plt.savefig(os.path.join("data/pics/guassianProcessTest", "%s.png"%str(int(time.time()))))
+plt.savefig(os.path.join("data/pics/guassianProcessTest", "tmp.png"))
 plt.show()
