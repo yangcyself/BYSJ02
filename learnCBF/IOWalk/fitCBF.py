@@ -93,7 +93,7 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
 
     def obj(w):
         w,c = w[:lenw],w[lenw:]
-        return sqeuclidean(w[:-1]) + gamma * np.sum(c)
+        return sqeuclidean(w[:-1]) + gamma * np.sum(np.clip(c,0,None))
     def grad(w):
         w,c = w[:lenw],w[lenw:]
         ans = 2*w
@@ -112,12 +112,6 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
     def SVMjac(w):
         w,c = w[:lenw],w[lenw:]
         return np.concatenate([y.reshape((-1,1))*X_aug, np.eye(len(c)) ],axis=1)
-    def SVMCcons(w):
-        w,c = w[:lenw],w[lenw:]
-        return c
-    def SVMCjac(w):
-        w,c = w[:lenw],w[lenw:]
-        return np.concatenate([np.zeros((len(c),len(w))), np.eye(len(c)) ],axis=1)
 
 
     # X_c_aug = kernel.augment(X_c) if len(X_c) else []
@@ -143,13 +137,14 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
     options = {"maxiter" : 500, "disp"    : True, "verbose":1}
     lenx0 = lenw + len(y)
     x0 = np.random.random(lenx0)
+    x0[len(y):]  *= 0 # set the init of c to be zero
 
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
-                   {'type':'ineq','fun':SVMCcons, "jac":SVMCjac},
-                   {'type':'ineq','fun':feasibleCons}]
+                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
     
-    bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 100
+    bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 999999
     bounds[0,:] *= 0 # the first dim `x` 
+    bounds[len(y):,0] = 0 # set c > 0
 
     res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
                 constraints=constraints, )#method =  'SLSQP') # 'trust-constr' , "SLSQP"
@@ -241,6 +236,6 @@ class FitCBFSession(FitCBFSession_t):
         return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
-    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-10-09_03_08",
+    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-11-02_30_11",
         name = "Feasible",algorithm="feasible", trainNum=800)
     s()
