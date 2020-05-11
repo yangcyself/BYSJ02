@@ -172,7 +172,7 @@ def CBF_GEN_conic(dim,mc,*args:(float,float,float,{float, np.array})):
     Hb_CBF[:dim] = np.sum( mc * b * u.reshape(-1) for (a,b,c,u) in args)
     Hb_CBF[dim:] = np.sum( b * u.reshape(-1) for (a,b,c,u) in args)
 
-    Hc_CBF = np.sum(c for (a,b,c,u) in args)
+    Hc_CBF = np.sum(mc * c for (a,b,c,u) in args)
     
     return HA_CBF,Hb_CBF,Hc_CBF
 

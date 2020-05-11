@@ -45,7 +45,7 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 1000, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
 Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
@@ -60,11 +60,11 @@ sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
 assert(sign == 1)
 HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
-ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
+# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
 # add CBF to constraint on the leg
-# ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,4)))
-# ct.addCBF(*CBF_GEN_conic(10,999,(0,0.1,0.5,6)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,4)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,6)))
 
 Traj = []
 def callback_traj(obj):
@@ -167,10 +167,10 @@ if __name__ == "__main__":
         } ,open(dumpname,"wb"))
         s.add_info("trajlog",dumpname)
 
-    IOcmd_plot(dim = 0)
-    IOcmd_plot(dim = 1)
-    IOcmd_plot(dim = 2)
-    IOcmd_plot(dim = 3)
+    # IOcmd_plot(dim = 0)
+    # IOcmd_plot(dim = 1)
+    # IOcmd_plot(dim = 2)
+    # IOcmd_plot(dim = 3)
 
     CBF_plot()
     CBFConsValue_plot(dim = 0)
@@ -181,14 +181,14 @@ if __name__ == "__main__":
     # CBFDrift_plot(dim = 1)
     # Fr_plot()
     
-    U_plot(dim = 0)
-    U_plot(dim = 1)
-    U_plot(dim = 2)
-    U_plot(dim = 3)
+    # U_plot(dim = 0)
+    # U_plot(dim = 1)
+    # U_plot(dim = 2)
+    # U_plot(dim = 3)
 
     # fw_plot(dim = 0)
     # fw_plot(dim = 1)
     # fw_plot(dim = 2)
     # fw_plot(dim = 3)
-    
+
     plt.show()

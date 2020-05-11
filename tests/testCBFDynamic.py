@@ -5,6 +5,8 @@ Test the dynamic of the CBF calculation,
 Run the recorded trajectory and compare the dynamic of BF
     2020-05-06 23:40:58 dHx passed, dBF passed, 走势一样，real有毛刺， dBF主要为ddHx, ddHx 比dHx大两个数量级, ddHx也有毛刺
         毛刺出现在 腿swing 切换到stance那一下 (毕竟那个碰撞我也没建模)
+    2020-05-11 11:11:13 测试拟合出来的CBF，发现除了毛刺之外，在DBF和DHX还有持续偏差的情况
+    例如，在0.58秒的时候， dBF计算出来是负的，但实际是正的
 """
 
 import sys
@@ -13,6 +15,7 @@ from ctrl.CBFWalker import *
 from ctrl.playBackCtrl import *
 import pickle as pkl
 import matplotlib.pyplot as plt
+import json
 
 class playBackWalkerCtrl(CBF_WALKER_CTRL, playBackCTRL):
     
@@ -54,11 +57,16 @@ playBackWalkerCtrl.restart()
 
 
 # traj = pkl.load(open("D:\\yangcy\\UNVSenior\\Graduation\\GradProject\\RabbitEnv\\data\\Traj\\1588767897.pkl","rb"))
-traj = pkl.load(open("data/Traj/1588230736.pkl","rb"))
+traj = pkl.load(open("data/Traj/1589161354.pkl","rb"))
+
 ct = playBackWalkerCtrl(traj = traj)
 ct.setState(init_state)
-ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.5,4)))
-ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.5,6)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,4)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,6)))
+# Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
+# HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
+# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
+
 ct.callbacks.append(callback_traj)
 
 def drawSwichStancePoint(y = 0):
@@ -113,7 +121,7 @@ if __name__ == "__main__":
     plotDHX(dim=16)
 
     plotDBF(dim=0)
-    plotDBF(dim=1)
+    # plotDBF(dim=1)
 
     plotU(dim = 4)
     plotU(dim = 6)
