@@ -179,15 +179,16 @@ if __name__ == "__main__":
     # CBFvalue_plot(dim = 1)
     # CBFDrift_plot(dim = 0)
     # CBFDrift_plot(dim = 1)
-    plt.show()
     # Fr_plot()
     
-    # U_plot(dim = 0)
-    # U_plot(dim = 1)
-    # U_plot(dim = 2)
-    # U_plot(dim = 3)
+    U_plot(dim = 0)
+    U_plot(dim = 1)
+    U_plot(dim = 2)
+    U_plot(dim = 3)
 
     # fw_plot(dim = 0)
     # fw_plot(dim = 1)
     # fw_plot(dim = 2)
     # fw_plot(dim = 3)
+    
+    plt.show()

@@ -169,6 +169,7 @@ class SampleSession_t(Session):
                         self.sampleCount_safe += 1
                         SafeSamples.append((sample,u))
                         sample[[3,4,5,6, 13,14,15,16]] = sample[[5,6,3,4, 15,16,13,14]]
+                        u[[3,4,5,6]] = u[[5,6,3,4]]
                         G.addObs(sample,1)
                         self.sampleCount_safe += 1
                         SafeSamples.append((sample,u))
@@ -183,6 +184,7 @@ class SampleSession_t(Session):
                         self.sampleCount_danger += 1
                         DangerSamples.append((sample,u))
                         sample[[3,4,5,6, 13,14,15,16]] = sample[[5,6,3,4, 15,16,13,14]]
+                        u[[3,4,5,6]] = u[[5,6,3,4]]
                         G.addObs(sample,-1)
                         self.sampleCount_danger += 1
                         DangerSamples.append((sample,u))

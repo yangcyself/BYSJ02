@@ -79,7 +79,8 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
         X: tested datapoints
         y: 1 or -1; 1 means in CBF's upper level set
         u: The input from the sample of each `X`, only the state with y=1 is used
-        mc: gamma
+        mc: the constraint of dB + mc B > 0
+        gamma: The gamma in SVM objective
 
         cast it into an optimization problem, where
         min_{w,b}  ||w||
