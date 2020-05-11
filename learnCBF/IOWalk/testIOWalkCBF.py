@@ -173,9 +173,9 @@ if __name__ == "__main__":
     IOcmd_plot(dim = 3)
 
     CBF_plot()
-    # CBFConsValue_plot(dim = 0)
+    CBFConsValue_plot(dim = 0)
     # CBFConsValue_plot(dim = 1)
-    # CBFvalue_plot(dim = 0)
+    CBFvalue_plot(dim = 0)
     # CBFvalue_plot(dim = 1)
     # CBFDrift_plot(dim = 0)
     # CBFDrift_plot(dim = 1)

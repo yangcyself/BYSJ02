@@ -40,7 +40,7 @@ def reset(ct):
     3.29500361015889])
 
 
-def SampleTraj(BalphaStd,Balpha=Balpha):
+def SampleTraj(BalphaStd,Balpha=Balpha,CBFList = None):
     ct = CBF_WALKER_CTRL()
     reset(ct)
     Balpha = Balpha + BalphaStd*(0.5-np.random.random(size = Balpha.shape))
@@ -48,6 +48,9 @@ def SampleTraj(BalphaStd,Balpha=Balpha):
     Kd = np.log(Kp)*np.random.rand()*4
     CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
     CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
+    CBFList = [] if CBFList is None else CBFList
+    [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for HA_CBF,Hb_CBF,Hc_CBF in CBFList]
+
     Traj = []
     def callback_traj(obj):
         Traj.append((obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP))
