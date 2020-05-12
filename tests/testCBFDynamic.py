@@ -59,12 +59,15 @@ playBackWalkerCtrl.restart()
 # traj = pkl.load(open("D:\\yangcy\\UNVSenior\\Graduation\\GradProject\\RabbitEnv\\data\\Traj\\1588767897.pkl","rb"))
 # traj = pkl.load(open("data/Traj/1589161354.pkl","rb"))
 
-traj = pkl.load(open("data/Traj/1589207105.pkl","rb"))
+# traj = pkl.load(open("data/Traj/1589207105.pkl","rb"))
+traj = pkl.load(open("data/Traj/1589273990.pkl","rb"))
 
 ct = playBackWalkerCtrl(traj = traj)
-ct.setState(init_state)
-ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,4)))
-ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,6)))
+# ct.setState(init_state)
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,-0.5,4)))
+ct.addCBF(*CBF_GEN_conic(10,1,(0,1,-0.5,6)))
+# ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,35*np.math.pi/180+(np.math.pi/6)**2,4)))
+# ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,35*np.math.pi/180+(np.math.pi/6)**2,6)))
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
 # HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
 # ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
@@ -115,7 +118,7 @@ def plotU(dim = 0):
 
 if __name__ == "__main__":
 
-    ct.step(0.2)
+    ct.step(1)
     # ct.playstate(1)
     plotDHX(dim=4)
     plotDHX(dim=6)

@@ -103,7 +103,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
 
 
     @CTRL_COMPONENT
-    def CBF_CLF_QP(self, mc_b = 1, ml = 0.00001):
+    def CBF_CLF_QP(self, mc_b = 1e-2, ml = 0.00001):
         """
         ((self.BF,self.dBF), (self.CF, self.dCF), self.HisCBF) -> setJointTorques()
         args mc: gamma

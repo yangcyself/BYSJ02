@@ -45,12 +45,12 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 100, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 400, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-11-22_58_40.json","r")) # trained with only 40 samples
-Polyparameter = json.load(open("data/CBF/Feasible_2020-05-12-09_24_47.json","r"))
+Polyparameter = json.load(open("data/CBF/Feasible_2020-05-12-09_24_47.json","r")) # trained with 500 samples
 
 # Make the init_state positive in CBF
 
@@ -62,11 +62,13 @@ sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
 assert(sign == 1)
 HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
-# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
+ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
 # add CBF to constraint on the leg
-ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,4)))
-ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,6)))
+ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))
+ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,6)))
+# ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,4)))
+# ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,6)))
 
 Traj = []
 def callback_traj(obj):
@@ -184,13 +186,13 @@ if __name__ == "__main__":
 
     # CBF_plot()
     CBFConsValue_plot(dim = 0)
-    CBFConsValue_plot(dim = 1)
+    # CBFConsValue_plot(dim = 1)
     CBFvalue_plot(dim = 0)
-    CBFvalue_plot(dim = 1)
-    CBFDrift_plot(dim = 0)
-    CBFDrift_plot(dim = 1)
+    # CBFvalue_plot(dim = 1)
+    # CBFDrift_plot(dim = 0)
+    # CBFDrift_plot(dim = 1)
     CBFdvalue_plot(dim = 0)
-    CBFdvalue_plot(dim = 1)
+    # CBFdvalue_plot(dim = 1)
     # Fr_plot()
     
     # U_plot(dim = 0)

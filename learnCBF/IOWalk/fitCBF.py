@@ -74,7 +74,7 @@ def getDynamic(x):
 # Add more constraints to the fitting problem
 
 
-def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, gamma2=1000, class_weight= None):
+def fitFeasibleCBF(X, y, u_list, mc = 1e-2, dim = 20, gamma=1, gamma2=1000, class_weight= None):
     """
         X: tested datapoints
         y: 1 or -1; 1 means in CBF's upper level set
