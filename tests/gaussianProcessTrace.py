@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import dill as pkl
 import numpy as np
 
-GPProb = pkl.load(open("data\gaussian\GPProbTrace2020-05-10-14_48_27.pkl","rb"))
+# GPProb = pkl.load(open("data\gaussian\GPProbTrace2020-05-10-14_48_27.pkl","rb"))
+GPProb = pkl.load(open("data\gaussian\GPProbTrace2020-05-11-02_30_11.pkl","rb"))
 
 safeTrace = []
 DangerTrace = []
@@ -20,34 +21,50 @@ for safeTraj,DangerTraj in GPProb:
     
 
 GPProb = np.array(GPProb)
-
+safeTrace,DangerTrace = np.array(safeTrace),np.array(DangerTrace)
 def addTrajStarts(y =(lambda x: 0)):
     ax = plt.gca()
     ax.plot(TrajStarts, [y(x) for x in TrajStarts],".",label = "Traj Starts")
 
 
-plt.figure()
-plt.plot(GPProb[:,0], GPProb[:,1],label = "prob")
-addTrajStarts()
-plt.title("prob")
-plt.legend()
-plt.grid()
-plt.draw()
+def plotprob(trace):
+    plt.figure()
+    plt.plot(trace[:,0])
+    plt.draw()
+    plt.figure()
+    plt.plot(trace[:,0], trace[:,1],".",markersize = 1,label = "prob")
+    addTrajStarts()
+    plt.title("prob")
+    plt.legend()
+    plt.grid()
+    plt.draw()
 
-plt.figure()
-plt.plot(GPProb[:,0], GPProb[:,2],label = "mu")
-addTrajStarts()
-plt.title("mu")
-plt.legend()
-plt.grid()
-plt.draw()
+def plotmu(trace):
+    plt.figure()
+    plt.plot(trace[:,0], trace[:,2],".",markersize = 1,label = "mu")
+    addTrajStarts()
+    plt.title("mu")
+    plt.legend()
+    plt.grid()
+    plt.draw()
 
-plt.figure()
-plt.plot(GPProb[:,0], GPProb[:,3],label = "std")
-addTrajStarts()
-plt.title("std")
-plt.legend()
-plt.grid()
-plt.draw()
+
+def plotstd(trace):
+    plt.figure()
+    plt.plot(trace[:,0], trace[:,3],".",markersize = 1, label = "std")
+    addTrajStarts()
+    plt.title("std")
+    plt.legend()
+    plt.grid()
+    plt.draw()
+
+# plotprob(safeTrace)
+# plotstd(safeTrace)
+# plotmu(safeTrace)
+
+plotprob(DangerTrace)
+plotstd(DangerTrace)
+plotmu(DangerTrace)
+
 
 plt.show()

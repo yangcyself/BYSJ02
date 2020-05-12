@@ -57,7 +57,9 @@ playBackWalkerCtrl.restart()
 
 
 # traj = pkl.load(open("D:\\yangcy\\UNVSenior\\Graduation\\GradProject\\RabbitEnv\\data\\Traj\\1588767897.pkl","rb"))
-traj = pkl.load(open("data/Traj/1589161354.pkl","rb"))
+# traj = pkl.load(open("data/Traj/1589161354.pkl","rb"))
+
+traj = pkl.load(open("data/Traj/1589207105.pkl","rb"))
 
 ct = playBackWalkerCtrl(traj = traj)
 ct.setState(init_state)
@@ -113,7 +115,7 @@ def plotU(dim = 0):
 
 if __name__ == "__main__":
 
-    ct.step(1)
+    ct.step(0.2)
     # ct.playstate(1)
     plotDHX(dim=4)
     plotDHX(dim=6)
@@ -121,7 +123,7 @@ if __name__ == "__main__":
     plotDHX(dim=16)
 
     plotDBF(dim=0)
-    # plotDBF(dim=1)
+    plotDBF(dim=1)
 
     plotU(dim = 4)
     plotU(dim = 6)
