@@ -235,7 +235,9 @@ class CTRL:
         This is the lambda of the operational space of the gc
             Lambda = (J A^{-1} J^T)^-1
         """
-        return np.linalg.inv(self.J_gc @ self.RBD_A_inv @ self.J_gc.T)
+        lam = np.linalg.inv(self.J_gc @ self.RBD_A_inv @ self.J_gc.T)
+        # assert(np.isclose(lam,lam.T).all()) 
+        return lam
 
 
     @CTRL_COMPONENT
@@ -307,7 +309,8 @@ class CTRL:
     @CTRL_COMPONENT
     def Dg(self):
         return np.concatenate([np.zeros(GP.QDIMS),
-                - self.RBD_A_inv @ self.gc_N @ self.RBD_B] , axis = 0) # put J^T Lambda dJ dq here migh be the conventional way
+                # - self.RBD_A_inv @ self.gc_N @ self.RBD_B - self.RBD_A_inv @ self.J_gc.T @ self.gc_Lam @ self.dJ_gc @ self.state[GP.QDIMS:]] , axis = 0) # put J^T Lambda dJ dq here migh be the conventional way
+                - self.RBD_A_inv @ self.gc_N @ self.RBD_B] , axis = 0) 
 
 
     @CTRL_COMPONENT

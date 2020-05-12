@@ -45,10 +45,12 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 1000, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 100, kd = 20)
 
 # add a CBF controlling The angle from stance leg to torso
-Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
+# Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
+# Polyparameter = json.load(open("data/CBF/Feasible_2020-05-11-22_58_40.json","r")) # trained with only 40 samples
+Polyparameter = json.load(open("data/CBF/Feasible_2020-05-12-09_24_47.json","r"))
 
 # Make the init_state positive in CBF
 
@@ -68,8 +70,8 @@ ct.addCBF(*CBF_GEN_conic(10,1,(0,1,0.1,6)))
 
 Traj = []
 def callback_traj(obj):
-    #                0      1          2       3          4                 5               6           7                      8                  9
-    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.LOG_ResultFr, obj.CBF_CLF_QP, obj.LOG_FW, obj.LOG_CBF_ConsValue, obj.LOG_CBF_Value, obj.LOG_CBF_Drift))
+    #                0      1          2       3          4                 5               6           7                      8                  9                  10
+    Traj.append((obj.t, obj.state, obj.Hx, obj.IOcmd, obj.LOG_ResultFr, obj.CBF_CLF_QP, obj.LOG_FW, obj.LOG_CBF_ConsValue, obj.LOG_CBF_Value, obj.LOG_CBF_Drift, obj.LOG_dCBF_Value))
 def callback_clear():
     Traj = []
 
@@ -130,6 +132,14 @@ def CBFvalue_plot(dim = 0):
     plt.grid()
     plt.draw()
 
+def CBFdvalue_plot(dim = 0):
+    plt.figure()
+    plt.plot([t[0] for t in Traj], [t[10][dim] for t in Traj], label = "CBF dvalue dim %d"%dim)
+    plt.title("CBFdvalue_plot")
+    plt.legend()
+    plt.grid()
+    plt.draw()
+
 
 def CBFDrift_plot(dim = 0):
     plt.figure()
@@ -172,13 +182,15 @@ if __name__ == "__main__":
     # IOcmd_plot(dim = 2)
     # IOcmd_plot(dim = 3)
 
-    CBF_plot()
+    # CBF_plot()
     CBFConsValue_plot(dim = 0)
-    # CBFConsValue_plot(dim = 1)
+    CBFConsValue_plot(dim = 1)
     CBFvalue_plot(dim = 0)
-    # CBFvalue_plot(dim = 1)
-    # CBFDrift_plot(dim = 0)
-    # CBFDrift_plot(dim = 1)
+    CBFvalue_plot(dim = 1)
+    CBFDrift_plot(dim = 0)
+    CBFDrift_plot(dim = 1)
+    CBFdvalue_plot(dim = 0)
+    CBFdvalue_plot(dim = 1)
     # Fr_plot()
     
     # U_plot(dim = 0)

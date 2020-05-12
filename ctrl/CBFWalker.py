@@ -158,6 +158,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         # print("CBF Result: ",[c(res_x) for c in CBF_CONS])
         self.LOG_CBF_ConsValue = [c(res_x) for c in CBF_CONS]
         self.LOG_CBF_Value = self.HF
+        self.LOG_dCBF_Value = [dB_b@res_x + dB_c for dB_b, dB_c in  self.dHF]
         self.LOG_CBF_Drift = [dB_c for dB_b, dB_c in  self.dHF]
         if(self._v):
             print("Torque:", res_x)
