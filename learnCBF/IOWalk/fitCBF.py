@@ -74,7 +74,7 @@ def getDynamic(x):
 # Add more constraints to the fitting problem
 
 
-def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
+def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, gamma2=1000, class_weight= None):
     """
         X: tested datapoints
         y: 1 or -1; 1 means in CBF's upper level set
@@ -92,13 +92,13 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
     class_weight = {-1:1, 1:1} if class_weight is None else class_weight
 
     def obj(w):
-        w,c = w[:lenw],w[lenw:]
-        return sqeuclidean(w[:-1]) + gamma * np.sum(np.clip(c,0,None))
+        w,c,du = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
+        return sqeuclidean(w[:-1]) + gamma * np.sum(np.clip(c,0,None)) + gamma2 * np.linalg.norm(du)
     def grad(w):
-        w,c = w[:lenw],w[lenw:]
+        w,c,du = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         ans = 2*w
         ans[-1] = 0
-        ans = np.array(list(ans)+list(gamma*(c>0)))
+        ans = np.array(list(ans)+list(gamma*(c>0)) +list(2*gamma2*du))
         return ans.reshape((1,-1)) 
 
     X_aug = kernel.augment(X)
@@ -107,35 +107,41 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
     print("X_aug shape", X_aug.shape)
     print("y shape", y.shape)
     def SVMcons(w):
-        w,c = w[:lenw],w[lenw:]
+        w,c,du = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         return y * (X_aug @ w) - 1 + c
     def SVMjac(w):
-        w,c = w[:lenw],w[lenw:]
-        return np.concatenate([y.reshape((-1,1))*X_aug, np.eye(len(c)) ],axis=1)
+        w,c,du = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
+        return np.concatenate([y.reshape((-1,1))*X_aug, np.eye(len(c)),np.zeros((len(c),lenfu)) ],axis=1)
 
 
     # X_c_aug = kernel.augment(X_c) if len(X_c) else []
     feasiblePoints = [(x,xa,u,*getDynamic(x)) for x,xa,y,u in  zip(X,X_aug,y,u_list) if y ==1]
+    udim = len(u_list[0])
+    print("udim:",udim)
+    lenfu = len(feasiblePoints) * udim # The length of all the `du`
     print("len(feasiblePoints)",len(feasiblePoints))
     # [w.T @ kernel.jac(x) @ Dyn_A @ x  +  
     #                 MAX_INPUT * np.linalg.norm(Dyn_B.T @ kernel.jac(x).T @ w, ord = 1) for x in X_c])
 
     def feasibleCons(w):
-        w,c = w[:lenw],w[lenw:]
-        return np.array([w.T @ kernel.jac(x) @ (A @ x + B @ u + g) + mc * xa @ w
-                    for x,xa,u,A,B,g in feasiblePoints])
+        w,c,du = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
+        return np.array([w.T @ kernel.jac(x) @ (A @ x + B @ (u+du[i*udim:(i+1)*udim]) + g) + mc * xa @ w
+                    for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)])
 
     def feasibleJac(w):        
-        w,c = w[:lenw],w[lenw:]
-        return np.concatenate([ np.array(list(kernel.jac(x) @ (A @ x + B @ u + g) + mc * xa)+[0]*len(c)).reshape((1,-1))
-                    for x,xa,u,A,B,g in feasiblePoints],axis=0)
+        w,c,du = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
+        return np.concatenate([ 
+                np.array(list(kernel.jac(x) @ (A @ x + B @ (u+du[i*udim:(i+1)*udim]) + g) + mc * xa)
+                    +[0]*(len(c)) + [0]*(i*udim)+ list(w.T@ kernel.jac(x)@B) +[0]*(lenfu-(i*udim)-udim)
+                ).reshape((1,-1))
+                for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)],axis=0)
 
     # # TODO
     # def symmetricCons(w):
     #     return
 
     options = {"maxiter" : 500, "disp"    : True, "verbose":1}
-    lenx0 = lenw + len(y)
+    lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0)
     x0[len(y):]  *= 0 # set the init of c to be zero
 
@@ -144,7 +150,7 @@ def fitFeasibleCBF(X, y, u_list, mc = 1, dim = 20, gamma=1, class_weight= None):
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 999999
     bounds[0,:] *= 0 # the first dim `x` 
-    bounds[len(y):,0] = 0 # set c > 0
+    bounds[len(y):-lenfu,0] = 0 # set c > 0
 
     res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
                 constraints=constraints, )#method =  'SLSQP') # 'trust-constr' , "SLSQP"
