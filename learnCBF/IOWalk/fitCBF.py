@@ -93,11 +93,10 @@ def fitFeasibleCBF(X, y, u_list, mc, dim, gamma, gamma2, class_weight= None):
 
     def obj(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        # print("gamma * np.sum(np.clip(c,0,None))",gamma * np.sum(np.clip(c,0,None)))
-        return sqeuclidean(w[:-1]) + gamma * np.sum(c) + gamma2 * sqeuclidean(u_ - uvec)
+        return 0.01*sqeuclidean(w[:-1]) + gamma * np.sum(c) + gamma2 * sqeuclidean(u_ - uvec)
     def grad(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        ans = 2*w
+        ans = 0.01*2*w
         ans[-1] = 0
         # print("c,gamma,", c,gamma)
         # print("list(gamma*(c>0))",list(gamma*(c>0)))
@@ -147,12 +146,12 @@ def fitFeasibleCBF(X, y, u_list, mc, dim, gamma, gamma2, class_weight= None):
 
     options = {"maxiter" : 500, "disp"    : True, 'ftol': 1e-06,'iprint':2, "verbose":1}
     lenx0 = lenw + len(y) + lenfu
-    x0 = np.random.random(lenx0)
+    x0 = np.random.random(lenx0) *0
     x0[lenw:-lenfu]  *= 0 # set the init of c to be zero
     x0[-lenfu:] = uvec # set the init of u_ to be u
 
-    constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac}]#,
-                #    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
+    constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
+                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
     bounds[0,:] *= 0 # the first dim `x` 
@@ -180,7 +179,7 @@ class FitCBFSession_t(Session):
     pass
 
 class FitCBFSession(FitCBFSession_t):
-    def __init__(self, loaddir, name = "tmp", mc = 0.01,  gamma = 1, gamma2=100, class_weight = None, algorithm = "default", trainNum = 10):
+    def __init__(self, loaddir, name = "tmp", mc = 0.01,  gamma = 1, gamma2=1, class_weight = None, algorithm = "default", trainNum = 10):
         super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []
@@ -217,7 +216,6 @@ class FitCBFSession(FitCBFSession_t):
         self.add_info("class_weight",self.class_weight)
         self.add_info("trainNum",self.trainNum)
         self.add_info("class_weight",self.class_weight)
-        self.add_info("trainNum",self.trainNum)
     
 
     def body(self):
@@ -258,6 +256,6 @@ class FitCBFSession(FitCBFSession_t):
         return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
-    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-10-09_03_08",
-        name = "tmp",algorithm="feasible", trainNum=80)
+    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-11-02_30_11",
+        name = "Feasible",algorithm="feasible", trainNum=800)
     s()

@@ -32,7 +32,7 @@ class kernel:
             input the trained w
             Return the A, b, c of x^TAx + b^T x + c
         """
-        print("w:",w)
+        # print("w:",w)
         A = np.array([[w[min(i,j)*dim - int(min(i,j)*(min(i,j)-1)/2) - min(i,j) + max(i,j)]/(1 if(i==j)else 2)  for j in range(dim)] for i in range(dim)])
         b = w[-dim-1:-1]
         c = w[-1]
