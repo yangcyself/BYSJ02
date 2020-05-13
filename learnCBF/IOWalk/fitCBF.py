@@ -74,7 +74,7 @@ def getDynamic(x):
 # Add more constraints to the fitting problem
 
 
-def fitFeasibleCBF(X, y, u_list, mc = 1e-2, dim = 20, gamma=1, gamma2=1000, class_weight= None):
+def fitFeasibleCBF(X, y, u_list, mc, dim, gamma, gamma2, class_weight= None):
     """
         X: tested datapoints
         y: 1 or -1; 1 means in CBF's upper level set
@@ -93,12 +93,15 @@ def fitFeasibleCBF(X, y, u_list, mc = 1e-2, dim = 20, gamma=1, gamma2=1000, clas
 
     def obj(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        return sqeuclidean(w[:-1]) + gamma * np.sum(np.clip(c,0,None)) + gamma2 * sqeuclidean(u_ - uvec)
+        # print("gamma * np.sum(np.clip(c,0,None))",gamma * np.sum(np.clip(c,0,None)))
+        return sqeuclidean(w[:-1]) + gamma * np.sum(c) + gamma2 * sqeuclidean(u_ - uvec)
     def grad(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         ans = 2*w
         ans[-1] = 0
-        ans = np.array(list(ans)+list(gamma*(c>0)) +list(2*gamma2*(u_ - uvec)))
+        # print("c,gamma,", c,gamma)
+        # print("list(gamma*(c>0))",list(gamma*(c>0)))
+        ans = np.array(list(ans)+list([gamma]*len(c)) +list(2*gamma2*(u_ - uvec)))
         return ans.reshape((1,-1)) 
 
     X_aug = kernel.augment(X)
@@ -142,26 +145,26 @@ def fitFeasibleCBF(X, y, u_list, mc = 1e-2, dim = 20, gamma=1, gamma2=1000, clas
     # def symmetricCons(w):
     #     return
 
-    options = {"maxiter" : 500, "disp"    : True, "verbose":1}
+    options = {"maxiter" : 500, "disp"    : True, 'ftol': 1e-06,'iprint':2, "verbose":1}
     lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0)
-    x0[len(y):]  *= 0 # set the init of c to be zero
+    x0[lenw:-lenfu]  *= 0 # set the init of c to be zero
     x0[-lenfu:] = uvec # set the init of u_ to be u
 
-    constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
-                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
+    constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac}]#,
+                #    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
     
-    bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 999999
+    bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
     bounds[0,:] *= 0 # the first dim `x` 
-    bounds[len(y):-lenfu,0] = 0 # set c > 0
+    bounds[lenw:-lenfu,0] = 0 # set c > 0
+    bounds[lenw:-lenfu,1] = np.inf
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
     bounds[-lenfu:,1] =  np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
-
     res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
                 constraints=constraints, )#method =  'SLSQP') # 'trust-constr' , "SLSQP"
 
     # print("SVM Constraint:\n", SVMcons(res.x[:len(x0)]))
-    return (*kernel.GetParam(res.x), res.x)
+    return (*kernel.GetParam(res.x), res)
 
 
 
@@ -177,12 +180,14 @@ class FitCBFSession_t(Session):
     pass
 
 class FitCBFSession(FitCBFSession_t):
-    def __init__(self, loaddir, name = "tmp", gamma = 9999, class_weight = None, algorithm = "default", trainNum = 10):
+    def __init__(self, loaddir, name = "tmp", mc = 0.01,  gamma = 1, gamma2=100, class_weight = None, algorithm = "default", trainNum = 10):
         super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []
         self.loadedFile = []
+        self.mc = mc
         self.gamma = gamma
+        self.gamma2 = gamma2
         self.algorithm = algorithm.lower()
         self.class_weight = class_weight
         self.trainNum = trainNum
@@ -206,7 +211,11 @@ class FitCBFSession(FitCBFSession_t):
         self.add_info("Total Training Points",len(self.X_train))
         self.add_info("X dim",self.X.shape[1])
         self.add_info("number Positive",int(sum(np.array(self.y)==1)))
+        self.add_info("mc",self.mc)
         self.add_info("gamma",self.gamma)
+        self.add_info("gamma2",self.gamma2)
+        self.add_info("class_weight",self.class_weight)
+        self.add_info("trainNum",self.trainNum)
         self.add_info("class_weight",self.class_weight)
         self.add_info("trainNum",self.trainNum)
     
@@ -228,7 +237,9 @@ class FitCBFSession(FitCBFSession_t):
                 Testtest = [x.T @ A @ x + b.T @ x + c for x in self.X_test]
 
             elif(self.algorithm == "feasible"):
-                A,b,c,x0 =  fitFeasibleCBF(np.array(self.X_train),self.y_train,self.u_train,dim=self.X_train.shape[1], gamma=self.gamma, class_weight = self.class_weight)
+                A,b,c,res =  fitFeasibleCBF(np.array(self.X_train),self.y_train,self.u_train,dim=self.X_train.shape[1], 
+                                    mc = self.mc, gamma=self.gamma, gamma2=self.gamma2, class_weight = self.class_weight)
+                self.add_info("Optimization_TerminationMessage",res.message)
                 Traintest = [ x.T @ A @ x + b.T @ x + c for x in self.X_train]
                 Testtest = [ x.T @ A @ x + b.T @ x + c for x in self.X_test]
 
@@ -247,6 +258,6 @@ class FitCBFSession(FitCBFSession_t):
         return str(datetime.datetime.now() -  self._startTime)
 
 if __name__ == '__main__':
-    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-11-02_30_11",
-        name = "Feasible",algorithm="feasible", trainNum=800)
+    s = FitCBFSession("./data/StateSamples/IOWalkSample/2020-05-10-09_03_08",
+        name = "tmp",algorithm="feasible", trainNum=80)
     s()
