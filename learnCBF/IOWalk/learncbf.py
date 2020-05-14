@@ -92,7 +92,8 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
     return x_danger,x_safe
 
 
-def getAsample(CBF,dangerDT,safeDT):
+def getAsample(inputarg):
+    CBF,dangerDT,safeDT = inputarg
     return GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT)
 
 
