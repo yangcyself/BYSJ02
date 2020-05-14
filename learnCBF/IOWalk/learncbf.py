@@ -8,6 +8,7 @@ from scipy.linalg import sqrtm,expm
 from ctrl.CBFWalker import *
 from learnCBF.IOWalk.IOWalkUtil import *
 from learnCBF.FittingUtil import kernel, sqeuclidean, dumpJson
+import dill as pkl
 
 
 def representEclips(A,b,c):
@@ -85,7 +86,7 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
 
 
 
-def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= None, numSample = 2, dangerDT=0.01, safeDT=0.1):
+def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= None, numSample = 2, dangerDT=0.01, safeDT=0.5):
     """
     One iteration of the learnCBF: input a CBF, calls sampler and GetPints, and return a CBF
     
@@ -104,7 +105,14 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= N
                 y_i(dB(x_i,u_i)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
     """
     HA,Hb,Hc = CBF
-    samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
+
+    # try: DEBUGGING CLOUSE
+    #     samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    #     print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
+    # except FileNotFoundError as ex:
+    #     samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
+    #     pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
+
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
     y = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
     u_list = [u for danger_s, safe_s in samples for x,u,DB in safe_s]
@@ -137,11 +145,11 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= N
         ans = gamma0*2*w
         ans[-1] = 0
         ans = np.array(list(ans)+list([gamma]*len(c)) +list(2*gamma2*(u_ - uvec)))
-        return ans.reshape((1,-1)) 
+        return ans.reshape((-1)) # shape (-1) rather than (1,-1) is necessary for trust-constr
 
     def SVMcons(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        return y * (X_aug @ w) - 1 + c
+        return (y * (X_aug @ w) - 1 + c).reshape(-1)
     def SVMjac(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         return np.concatenate([y.reshape((-1,1))*X_aug, np.eye(len(c)),np.zeros((len(c),lenfu)) ],axis=1)
@@ -176,35 +184,136 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= N
     # def symmetricCons(w):
     #     return
 
-    options = {"maxiter" : 500, "disp"    : True, 'ftol': 1e-06,'iprint':2, "verbose":1}
+    options = {"maxiter" : 500, "disp"    : True,  "verbose":1, 'iprint':2} # 'iprint':2,
     lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0) *0
-    x0[lenw-1] = 1 # set the c to be 1, so that the A should be negative definite
+    # set the init value to be an eclipse around the mean of feasible points
+    x0[[int((41-i)*i/2) for i in range(dim)]] = -1
+    pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
+    x0[lenw-dim-1:lenw-1] = 2*pos_x_mean
+    x0[lenw-1] = 1 - sqeuclidean(pos_x_mean) # set the c to be 1, so that the A should be negative definite
     x0[lenw:-lenfu]  *= 0 # set the init of c to be zero
     x0[-lenfu:] = uvec # set the init of u_ to be u
 
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
                    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac},
-                   {'type':'ineq','fun':containCons}]
+                   {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line
+                   ]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
     bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
+    bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
     bounds[-lenfu:,1] =  np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
-    res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
-                constraints=constraints, )#method =  'SLSQP') # 'trust-constr' , "SLSQP"
 
+    # ################################
+    # ###Temporary Constrinats########
+    # ################################
+    # w_inds = set((list(range(lenw-1))))
+    # w_inds.remove(74)
+    # w_inds.remove(84)
+    # w_inds.remove(189)
+    # w_inds.remove(int((dim+1)*dim/2) + 4)
+    # w_inds.remove(int((dim+1)*dim/2) + 14)
+    # bounds[list(w_inds),:] *= 0 # set the value not related to q and dq to zero
+
+    res = minimize(obj, x0, options = options,jac=grad, bounds=bounds,
+                constraints=constraints, method =  'SLSQP') # 'trust-constr' , "SLSQP"
+
+    # print("SVMcons(res.x) :",SVMcons(res.x))
+    # assert((SVMcons(res.x)>-1e-2).all())
     # print("SVM Constraint:\n", SVMcons(res.x[:len(x0)]))
-    return (*kernel.GetParam(res.x), res)
+    return (*kernel.GetParam(res.x[:lenw],dim=dim), res)
+    # return (*kernel.GetParam(x0[:lenw],dim=dim), res)
 
  
 
 if __name__ == '__main__':
+
+    ### Hand craft test data
+    # Xp_ = np.array([[2,-1],[3,-4],[2,-3],[1,-2]])
+    # Xn_ = np.array([[1,-10],[2,-10],[3,-10],[4,-10]])
+    # Xp = np.zeros((4,20))
+    # Xp[:,[4,14]] = Xp_
+    # Xn = np.zeros((4,20))
+    # Xn[:,[4,14]] = Xn_
+    # samples = [([(x,np.zeros(7),(None,None,None)) for x in Xn],[(x,np.zeros(7),(None,None,None)) for x in Xp])]
+    # pkl.dump(samples, open("./data/learncbf/Handtmp.pkl","wb"))
+
     CTRL.restart()
     A,b,c,_ = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
                     dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
                     numSample = 20)
 
     dumpJson(A,b,c,"data/CBF/LegAngletmp.json")
+    
+    from util.visulization import QuadContour
+    import matplotlib.pyplot as plt
+    import json
+
+    # pts = QuadContour(*CBF_GEN_conic(10,100000,(0,1,0.1,4)), np.arange(-0,0.015,0.0000001),4,14)
+    # plt.plot(pts[:,0], pts[:,1], ".", label = "CBF")
+    # # plt.ylim(ymin = 0)
+    # plt.title("x,y trajectory with CBF")
+
+    # plt.draw()
+    # plt.figure()
+
+    Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
+    HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
+
+    print("HA_CBF[4][4]",HA_CBF[4][4])
+    print("HA_CBF[14][14] :",HA_CBF[14][14])
+    print("HA_CBF[4][14] :",HA_CBF[4][14])
+    print("Hb_CBF[4] :",Hb_CBF[4])
+    print("Hb_CBF[14] :",Hb_CBF[14])
+    print("Hc_CBF :",Hc_CBF)
+    
+
+
+    # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
+    Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
+
+    # x0 = np.mean(np.array(list(Xp)+list(Xn)), axis = 0)
+    x0 = np.mean(np.array(list(Xp)), axis = 0)
+    x0[[4,14]] = 0
+    x0 = x0.reshape(-1)
+    print("x0 :",x0)
+    print("x0.T@HA_CBF@x0 :",x0.T@HA_CBF@x0)
+    
+    pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF, np.arange(-50,50,0.01),4,14, x0 = x0)
+    plt.plot(pts[:,0], pts[:,1], ".", label = "New CBF")
+    plt.legend()
+
+    # plt.draw()
+    # plt.figure()
+
+    plt.plot(Xp[:,4],Xp[:,14],".",c = "g",label = "safe points")
+    plt.plot(Xn[:,4],Xn[:,14],".",c = "r",label = "danger points")
+    plt.legend()
+    # plt.ylim((-50,50))
+    plt.draw()
+
+    plt.figure()
+    # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
+    y_list = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
+    # print("X :",X)
+    # print("y_list :",y_list)
+    
+    
+    Xp = np.array([x for x,y in zip(X,y_list) if y==1])
+    Xn = np.array([x for x,y in zip(X,y_list) if y==-1])
+    plt.plot(Xp[:,4],Xp[:,14],".",c = "g",label = "safe points")
+    plt.plot(Xn[:,4],Xn[:,14],".",c = "r",label = "danger points")
+    plt.legend()
+    # plt.ylim((-50,50))
+    plt.draw()
+
+    
+    plt.show()

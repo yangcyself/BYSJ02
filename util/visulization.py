@@ -1,20 +1,30 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def QuadContour(A,B,C, X, Xbase = np.array([1,0,0,0,0,0,0, 0,0,0,0,0,0,0,]), Ybase = np.array([0,1,0,0,0,0,0, 0,0,0,0,0,0,0,])):
+def QuadContour(A,B,C, X, Xbase = 0, Ybase = 1,x0 = None):
     """
     return a list of points (x,y) where X is from the set list X
 
     args: Xbase, Ybase are the axis to be plotted, We assume the value of all other spaces are 0
     """
+    def vec_u(u):
+        if(type(u)==int):
+            res = np.zeros((A.shape[0]))
+            res[u] = 1
+            return res
+        assert(len(u)==A.shape[0])
+        return np.array(u).reshape((-1))
+    Xbase = vec_u(Xbase)
+    Ybase = vec_u(Ybase)
+    x0 = np.zeros(A.shape[0]) if x0 is None else x0
     retList = []
     for x in X:
         # get a second order equation a y^2 + by + c = 0
         a = Ybase.T @ A @ Ybase
-        b = 2 * x * Xbase.T @ A @ Ybase + B.T @ Ybase
-        c = x * (Xbase.T @ A @ Xbase * x + B.T @ Xbase) + C
+        b = 2 * (x * Xbase.T + x0) @ A @ Ybase + B.T @ Ybase
+        c = ((x * Xbase + x0).T ) @ A @ (Xbase * x + x0) + B.T @ (Xbase * x + x0) + C
 
-        print(a,b,c)
+        # print(a,b,c)
 
         if(abs(a) < 1e-6):
             retList.append((x,-c/b))
@@ -26,7 +36,7 @@ def QuadContour(A,B,C, X, Xbase = np.array([1,0,0,0,0,0,0, 0,0,0,0,0,0,0,]), Yba
                 delta = np.sqrt(delta)
                 retList.append((x,(-b + delta)/(2*a)))
                 retList.append((x,(-b - delta)/(2*a)))
-                print((-b - delta)/(2*a))
+                # print((-b - delta)/(2*a))
     return np.array(retList)
 
 if __name__ == "__main__":
