@@ -14,6 +14,10 @@ from glob import glob
 import json
 import datetime
 
+import multiprocessing
+from multiprocessing import Pool
+
+
 def representEclips(A,b,c):
     """
     represent an Eclips using the end of its axises
@@ -89,7 +93,7 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
 
 
 
-def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None):
+def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None, pool = None):
     """
     One iteration of the learnCBF: input a CBF, calls sampler and GetPints, and return a CBF
     
@@ -113,7 +117,13 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     #     samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
     #     print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
     # except FileNotFoundError as ex:
-    samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
+
+    if pool is None:
+        samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
+    else:
+        def getAsample(i):
+            return GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT)
+        samples = pool.map(getAsample, range(numSample))
     #     pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
 
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
@@ -242,9 +252,9 @@ class LearnCBFSession_t(Session):
 
 class LearnCBFSession(LearnCBFSession_t):
     def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
-                    numSample = 200, dangerDT=0.01, safeDT=0.5):
+                    numSample = 200, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
-                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT)
+                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, ProcessNum = ProcessNum)
 
         self.Iteras = Iteras
         self.mc = mc
@@ -256,41 +266,45 @@ class LearnCBFSession(LearnCBFSession_t):
         self.dangerDT = dangerDT
         self.safeDT = safeDT
         self.CBF0 = CBF0
+        ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
+        self.ProcessNum = ProcessNum
     
         self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)
         os.makedirs(self.resultPath, exist_ok=True)
         self.add_info("resultPath",self.resultPath)
 
         self.IterationInfo_ = [] # a list of dict: {start_time, end_time, sampleFile, CBFFile}
+        
 
     def body(self):
         CTRL.restart()
         NoKeyboardInterrupt = True
         dumpJson(*self.CBF0,os.path.join(self.resultPath,"CBF0.json"))
         currentCBF = self.CBF0
-        for i in range(self.Iteras):
-            assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
-            try:
-                currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%i)
-                self.IterationInfo_.append({"start_time" : str(datetime.datetime.now()),
-                                            "inputCBFFile": currentCBFFile})
-                # read from the current CBF file to avoid mistake
-                Polyparameter = json.load(open(currentCBFFile,"r")) 
-                CBF = (np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"]))
-                A,b,c, res, samples =  learnCBFIter(CBF, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT)
-                self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
-                sampleFile = os.path.join(self.resultPath,"samples%d.json"%i)
-                self.IterationInfo_[-1]["sampleFile"] = sampleFile
-                pkl.dump(samples,open(sampleFile,"wb"))
+        with Pool(self.ProcessNum) as pool:
+            for i in range(self.Iteras):
+                assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
+                try:
+                    currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%i)
+                    self.IterationInfo_.append({"start_time" : str(datetime.datetime.now()),
+                                                "inputCBFFile": currentCBFFile})
+                    # read from the current CBF file to avoid mistake
+                    Polyparameter = json.load(open(currentCBFFile,"r")) 
+                    CBF = (np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"]))
+                    A,b,c, res, samples =  learnCBFIter(CBF, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, pool = pool)
+                    self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
+                    sampleFile = os.path.join(self.resultPath,"samples%d.json"%i)
+                    self.IterationInfo_[-1]["sampleFile"] = sampleFile
+                    pkl.dump(samples,open(sampleFile,"wb"))
 
-                currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
-                dumpJson(A,b,c,currentCBFFile)            
-                self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
-                self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
+                    currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
+                    dumpJson(A,b,c,currentCBFFile)            
+                    self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
+                    self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
 
-            except KeyboardInterrupt as ex:
-                NoKeyboardInterrupt = False
-    
+                except KeyboardInterrupt as ex:
+                    NoKeyboardInterrupt = False
+            
     @LearnCBFSession_t.column
     def IterationInfo(self):
         return self.IterationInfo_
