@@ -149,7 +149,8 @@ def fitFeasibleCBF(X, y, u_list, mc, dim, gamma, gamma2, class_weight= None):
                    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
-    bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
+    bounds[:dim,:] *= 0 # all the factors interacts with x
+    bounds[lenw-dim-1,:] *= 0 # The first element of Hb_CBF
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
@@ -158,7 +159,7 @@ def fitFeasibleCBF(X, y, u_list, mc, dim, gamma, gamma2, class_weight= None):
                 constraints=constraints, )#method =  'SLSQP') # 'trust-constr' , "SLSQP"
 
     # print("SVM Constraint:\n", SVMcons(res.x[:len(x0)]))
-    return (*kernel.GetParam(res.x), res)
+    return (*kernel.GetParam(res.x[:lenw]), res)
 
 
 

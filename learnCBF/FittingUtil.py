@@ -34,6 +34,7 @@ class kernel:
             Return the A, b, c of x^TAx + b^T x + c
         """
         # print("w:",w)
+        assert (len(w) == int((dim+1)*dim/2 + dim + 1)), "Len(w) and dim do not match"
         A = np.array([[w[min(i,j)*dim - int(min(i,j)*(min(i,j)-1)/2) - min(i,j) + max(i,j)]/(1 if(i==j)else 2)  for j in range(dim)] for i in range(dim)])
         b = w[-dim-1:-1]
         c = w[-1]
