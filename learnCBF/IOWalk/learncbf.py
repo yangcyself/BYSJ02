@@ -92,6 +92,9 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
     return x_danger,x_safe
 
 
+def getAsample(CBF,dangerDT,safeDT):
+    return GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT)
+
 
 def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None, pool = None):
     """
@@ -121,9 +124,8 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     if pool is None:
         samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
     else:
-        def getAsample(i):
-            return GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT)
-        samples = pool.map(getAsample, range(numSample))
+        
+        samples = pool.map(getAsample, [(CBF,dangerDT,safeDT)]*numSample)
     #     pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
 
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
