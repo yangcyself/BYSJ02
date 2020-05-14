@@ -4,14 +4,12 @@ from glob import glob
 import pickle as pkl
 from scipy.optimize import minimize
 import os
-import json
 import datetime
 from ExperimentSecretary.Core import Session
 
 import sys
 sys.path.append(".")
-from learnCBF.FittingUtil import kernel
-sqeuclidean = lambda x: np.inner(x, x) # L2 NORM SQUARE
+from learnCBF.FittingUtil import kernel, sqeuclidean, dumpJson
 
 import globalParameters as GP
 GP.GUIVIS = False
@@ -52,9 +50,6 @@ def SVM_factors(X,y,dim = 20,gamma = 9999, class_weight = None):
     # print("Function parameter \n",A,b,c)
     return A,b,float(c)
 
-
-def dumpJson(A,b,c,fileName = "data/CBF/tmp2.json"):
-    json.dump({"A":A.tolist(),"b":b.tolist(),"c":c},open(fileName,"w"))
 
 
 def getDynamic(x):
@@ -154,7 +149,7 @@ def fitFeasibleCBF(X, y, u_list, mc, dim, gamma, gamma2, class_weight= None):
                    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
-    bounds[0,:] *= 0 # the first dim `x` 
+    bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))

@@ -50,17 +50,20 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = 400, kd = 20)
 # add a CBF controlling The angle from stance leg to torso
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-11-22_58_40.json","r")) # trained with only 40 samples
-Polyparameter = json.load(open("data/CBF/Feasible_2020-05-12-09_24_47.json","r")) # trained with 500 samples
 
+# Polyparameter = json.load(open("data/CBF/Feasible_2020-05-13-07_24_19.json","r")) # trained with 500 samples
 # Make the init_state positive in CBF
 
-ct.resetFlags()
+# ct.resetFlags()
 IOLinearCTRL.state.set(ct,init_state)
 IOLinearCTRL.contact_mask.set(ct,np.array((True,False)))
 HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
-sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
-assert(sign == 1)
-HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
+HA_CBF[0,:] = 0
+HA_CBF[:,0] = 0
+Hb_CBF[0] = 0
+# sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
+# assert(sign == 1)
+# HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
 ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
