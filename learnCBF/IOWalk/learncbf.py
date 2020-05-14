@@ -9,7 +9,10 @@ from ctrl.CBFWalker import *
 from learnCBF.IOWalk.IOWalkUtil import *
 from learnCBF.FittingUtil import kernel, sqeuclidean, dumpJson
 import dill as pkl
-
+from ExperimentSecretary.Core import Session
+from glob import glob
+import json
+import datetime
 
 def representEclips(A,b,c):
     """
@@ -86,7 +89,7 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
 
 
 
-def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= None, numSample = 2, dangerDT=0.01, safeDT=0.5):
+def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None):
     """
     One iteration of the learnCBF: input a CBF, calls sampler and GetPints, and return a CBF
     
@@ -110,7 +113,7 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= N
     #     samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
     #     print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
     # except FileNotFoundError as ex:
-    #     samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
+    samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
     #     pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
 
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
@@ -225,95 +228,75 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, class_weight= N
     # print("SVMcons(res.x) :",SVMcons(res.x))
     # assert((SVMcons(res.x)>-1e-2).all())
     # print("SVM Constraint:\n", SVMcons(res.x[:len(x0)]))
-    return (*kernel.GetParam(res.x[:lenw],dim=dim), res)
+    return (*kernel.GetParam(res.x[:lenw],dim=dim), res, samples)
     # return (*kernel.GetParam(x0[:lenw],dim=dim), res)
 
  
 
+
+class LearnCBFSession_t(Session):
+    """
+        define the Session class to record the information
+    """
+    pass
+
+class LearnCBFSession(LearnCBFSession_t):
+    def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
+                    numSample = 200, dangerDT=0.01, safeDT=0.5):
+        super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
+                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT)
+
+        self.Iteras = Iteras
+        self.mc = mc
+        self.gamma0 = gamma0
+        self.gamma = gamma
+        self.gamma2 = gamma2
+        self.class_weight = class_weight
+        self.numSample = numSample
+        self.dangerDT = dangerDT
+        self.safeDT = safeDT
+        self.CBF0 = CBF0
+    
+        self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)
+        os.makedirs(self.resultPath, exist_ok=True)
+        self.add_info("resultPath",self.resultPath)
+
+        self.IterationInfo_ = [] # a list of dict: {start_time, end_time, sampleFile, CBFFile}
+
+    def body(self):
+        CTRL.restart()
+        NoKeyboardInterrupt = True
+        dumpJson(*self.CBF0,os.path.join(self.resultPath,"CBF0.json"))
+        currentCBF = self.CBF0
+        for i in range(self.Iteras):
+            assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
+            try:
+                currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%i)
+                self.IterationInfo_.append({"start_time" : str(datetime.datetime.now()),
+                                            "inputCBFFile": currentCBFFile})
+                # read from the current CBF file to avoid mistake
+                Polyparameter = json.load(open(currentCBFFile,"r")) 
+                CBF = (np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"]))
+                A,b,c, res, samples =  learnCBFIter(CBF, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT)
+                self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
+                sampleFile = os.path.join(self.resultPath,"samples%d.json"%i)
+                self.IterationInfo_[-1]["sampleFile"] = sampleFile
+                pkl.dump(samples,open(sampleFile,"wb"))
+
+                currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
+                dumpJson(A,b,c,currentCBFFile)            
+                self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
+                self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
+
+            except KeyboardInterrupt as ex:
+                NoKeyboardInterrupt = False
+    
+    @LearnCBFSession_t.column
+    def IterationInfo(self):
+        return self.IterationInfo_
+
+
 if __name__ == '__main__':
-
-    ### Hand craft test data
-    # Xp_ = np.array([[2,-1],[3,-4],[2,-3],[1,-2]])
-    # Xn_ = np.array([[1,-10],[2,-10],[3,-10],[4,-10]])
-    # Xp = np.zeros((4,20))
-    # Xp[:,[4,14]] = Xp_
-    # Xn = np.zeros((4,20))
-    # Xn[:,[4,14]] = Xn_
-    # samples = [([(x,np.zeros(7),(None,None,None)) for x in Xn],[(x,np.zeros(7),(None,None,None)) for x in Xp])]
-    # pkl.dump(samples, open("./data/learncbf/Handtmp.pkl","wb"))
-
-    CTRL.restart()
-    A,b,c,_ = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
-                    dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
-                    numSample = 20)
-
-    dumpJson(A,b,c,"data/CBF/LegAngletmp.json")
-    
-    from util.visulization import QuadContour
-    import matplotlib.pyplot as plt
-    import json
-
-    # pts = QuadContour(*CBF_GEN_conic(10,100000,(0,1,0.1,4)), np.arange(-0,0.015,0.0000001),4,14)
-    # plt.plot(pts[:,0], pts[:,1], ".", label = "CBF")
-    # # plt.ylim(ymin = 0)
-    # plt.title("x,y trajectory with CBF")
-
-    # plt.draw()
-    # plt.figure()
-
-    Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
-    HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
-
-    print("HA_CBF[4][4]",HA_CBF[4][4])
-    print("HA_CBF[14][14] :",HA_CBF[14][14])
-    print("HA_CBF[4][14] :",HA_CBF[4][14])
-    print("Hb_CBF[4] :",Hb_CBF[4])
-    print("Hb_CBF[14] :",Hb_CBF[14])
-    print("Hc_CBF :",Hc_CBF)
-    
-
-
-    # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
-    Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
-
-    # x0 = np.mean(np.array(list(Xp)+list(Xn)), axis = 0)
-    x0 = np.mean(np.array(list(Xp)), axis = 0)
-    x0[[4,14]] = 0
-    x0 = x0.reshape(-1)
-    print("x0 :",x0)
-    print("x0.T@HA_CBF@x0 :",x0.T@HA_CBF@x0)
-    
-    pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF, np.arange(-50,50,0.01),4,14, x0 = x0)
-    plt.plot(pts[:,0], pts[:,1], ".", label = "New CBF")
-    plt.legend()
-
-    # plt.draw()
-    # plt.figure()
-
-    plt.plot(Xp[:,4],Xp[:,14],".",c = "g",label = "safe points")
-    plt.plot(Xn[:,4],Xn[:,14],".",c = "r",label = "danger points")
-    plt.legend()
-    # plt.ylim((-50,50))
-    plt.draw()
-
-    plt.figure()
-    # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
-    y_list = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
-    # print("X :",X)
-    # print("y_list :",y_list)
-    
-    
-    Xp = np.array([x for x,y in zip(X,y_list) if y==1])
-    Xn = np.array([x for x,y in zip(X,y_list) if y==-1])
-    plt.plot(Xp[:,4],Xp[:,14],".",c = "g",label = "safe points")
-    plt.plot(Xn[:,4],Xn[:,14],".",c = "r",label = "danger points")
-    plt.legend()
-    # plt.ylim((-50,50))
-    plt.draw()
-
-    
-    plt.show()
+    s = LearnCBFSession(CBF_GEN_conic(10,10000,(0,1,0.1,4)),
+        name = "redLegQ2")
+    s()

@@ -51,7 +51,7 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = 400, kd = 20)
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-11-22_58_40.json","r")) # trained with only 40 samples
 
-Polyparameter = json.load(open("data/CBF/Feasible_2020-05-13-07_24_19.json","r")) # trained with 500 samples
+Polyparameter = json.load(open("data/CBF/Feasible_2020-05-14-12_30_48.json","r")) # trained with 500 samples
 # Make the init_state positive in CBF
 
 # ct.resetFlags()
