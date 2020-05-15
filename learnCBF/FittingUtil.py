@@ -45,3 +45,7 @@ sqeuclidean = lambda x: np.inner(x, x) # L2 NORM SQUARE
 def dumpJson(A,b,c,fileName = "data/CBF/tmp2.json"):
     json.dump({"A":A.tolist(),"b":b.tolist(),"c":c},open(fileName,"w"))
 
+def loadJson(fileName = "data/CBF/tmp2.json"):
+    param = json.load(open(fileName,"r"))
+    return np.array(param["A"]), np.array(param["b"]), np.array(param["c"])
+

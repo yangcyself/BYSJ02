@@ -50,8 +50,11 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = 400, kd = 20)
 # add a CBF controlling The angle from stance leg to torso
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-08-14_31_01.json","r"))
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-11-22_58_40.json","r")) # trained with only 40 samples
+Polyparameter = json.load(open("data/CBF/Feasible_2020-05-14-12_30_22.json","r")) # trained with 500 samples
 
-Polyparameter = json.load(open("data/CBF/Feasible_2020-05-14-12_30_48.json","r")) # trained with 500 samples
+# Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-22_57_23/CBF2.json","r")) # the CBF0 of walking
+# Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_44_25/CBF1.json","r")) # the CBF0 of walking
+# Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_16_18/CBF1.json","r")) # the CBF0 of walking
 # Make the init_state positive in CBF
 
 # ct.resetFlags()

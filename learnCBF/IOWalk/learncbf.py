@@ -256,6 +256,7 @@ class LearnCBFSession_t(Session):
 class LearnCBFSession(LearnCBFSession_t):
     def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
                     numSample = 200, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
+        ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
                     numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, ProcessNum = ProcessNum)
 
@@ -269,7 +270,6 @@ class LearnCBFSession(LearnCBFSession_t):
         self.dangerDT = dangerDT
         self.safeDT = safeDT
         self.CBF0 = CBF0
-        ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
         self.ProcessNum = ProcessNum
     
         self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)

@@ -9,9 +9,11 @@ from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
 import dill as pkl
 from glob import glob
+import json
 
 from learnCBF.SampleUtil import GaussionProcess
 from learnCBF.IOWalk.IOWalkUtil import *
+from learnCBF.FittingUtil import loadJson
 
 def SampleTraj(BalphaStd,Balpha=Balpha,CBFList = None):
     ct = CBF_WALKER_CTRL()
@@ -22,7 +24,7 @@ def SampleTraj(BalphaStd,Balpha=Balpha,CBFList = None):
     CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
     CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
     CBFList = [] if CBFList is None else CBFList
-    [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for HA_CBF,Hb_CBF,Hc_CBF in CBFList]
+    [ct.addCBF(np.array(HA_CBF),np.array(Hb_CBF),Hc_CBF) for HA_CBF,Hb_CBF,Hc_CBF in CBFList]
 
     Traj = []
     def callback_traj(obj):
@@ -56,7 +58,7 @@ class SampleSession_t(Session):
     """
         define the Session class to record the information
     """
-    def __init__(self, BalphaStd = 0.03, Ntraj = 100, Nsample = 10, T_Threshold = 1.6, safe_Threshold=1, unsafe_Threshold=0.5, readTraj = None):
+    def __init__(self, BalphaStd = 0.03, Ntraj = 100, Nsample = 10, T_Threshold = 1.6, safe_Threshold=1, unsafe_Threshold=0.5, readTraj = None, CBFList = None):
         """
         args: BalphaStd the diviation acted on the alpha of the Beizer function
         args: Ntraj     The number of trajectory simulated
@@ -64,7 +66,8 @@ class SampleSession_t(Session):
         args: T_threshold The minimum length of time of trajectory (otherwise discard)
         args: readTraj  The path of the folder of trajectories to read from. if None, simulate trajectories rather than read
         """
-        super().__init__(expName="IOWalkSample")
+        CBFList = [] if CBFList is None else CBFList
+        super().__init__(expName="IOWalkSample", CBFList = CBFList)
         self.BalphaStd = BalphaStd
         self.T_Threshold = T_Threshold
         self.storTrajPath = "./data/Traj/IOWalkSample/%s"%(self._storFileName)
@@ -80,6 +83,10 @@ class SampleSession_t(Session):
         self.unsafe_Threshold = unsafe_Threshold
         kernel = lambda x,y: np.exp(-np.linalg.norm(x[1:]-y[1:])) # the kernel function ignores the x dimension
         self.GaussionP = GaussionProcess(kernel = kernel, sigma2=0.01) 
+
+        ##parse CBFList
+        self.CBFList = [CBF_GEN_conic(*B["args"]) if B["type"]=='CBF_GEN_conic'  else loadJson(B["args"])
+                            for B in CBFList]
 
         self.add_info("BalphaStd",self.BalphaStd)
         self.add_info("storTrajPath",self.storTrajPath)
@@ -107,9 +114,9 @@ class SampleSession_t(Session):
                     Traj = [(t,s,x,u) for t,s,x,u in zip(Traj["t"], Traj["state"], Traj["Hx"], Traj["u"])]
                     print("loaded:", glob(os.path.join(self.readTraj,"*.pkl"))[i])
                     NewTraj = False
-                except Exception:
+                except (FileNotFoundError, TypeError) as ex:
                     print("run simulation")
-                    Traj = SampleTraj(self.BalphaStd)
+                    Traj = SampleTraj(self.BalphaStd, CBFList=self.CBFList)
 
                 T_list = np.array([t[0] for t in Traj])
                 Hx_list = np.array([t[2] for t in Traj])
@@ -200,6 +207,9 @@ class SampleSession(SampleSession_t):
 CBF_WALKER_CTRL.restart()
             
 if __name__ == '__main__':
-    s = SampleSession(Ntraj=100, readTraj = "data/Traj/IOWalkSample/2020-05-07-20_49_45")
+    s = SampleSession(Ntraj=100, readTraj = None,
+        CBFList=[{"type":"CBF_GEN_conic", "args":((10,100,(0,1,0.1,4)))},
+                 {"type":"CBF_GEN_conic", "args":((10,100,(0,1,0.1,6)))},
+                 {"type":"Json", "args": "data/CBF/Feasible_2020-05-14-12_30_22.json"}])
     s()
     
