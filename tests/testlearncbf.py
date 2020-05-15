@@ -14,12 +14,12 @@ if __name__ == '__main__':
     # samples = [([(x,np.zeros(7),(None,None,None)) for x in Xn],[(x,np.zeros(7),(None,None,None)) for x in Xp])]
     # pkl.dump(samples, open("./data/learncbf/Handtmp.pkl","wb"))
 
-    CTRL.restart()
-    A,b,c,_ = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
-                    dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
-                    numSample = 20)
+    # CTRL.restart()
+    # A,b,c,_,samples = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
+    #                 dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
+    #                 numSample = 20, dangerDT=0.01, safeDT = 0.5)
 
-    dumpJson(A,b,c,"data/CBF/LegAngletmp.json")
+    # dumpJson(A,b,c,"data/CBF/LegAngletmp.json")
     
     from util.visulization import QuadContour
     import matplotlib.pyplot as plt
@@ -33,6 +33,7 @@ if __name__ == '__main__':
     # plt.draw()
     # plt.figure()
 
+    # Polyparameter = json.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/CBF1.json","r")) # trained with 500 samples
     Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
     HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
 
@@ -46,7 +47,8 @@ if __name__ == '__main__':
 
 
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    samples = pkl.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/samples0.json","rb"))
     Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
     Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
 
@@ -72,7 +74,7 @@ if __name__ == '__main__':
 
     plt.figure()
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+    samples = pkl.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/samples0.json","rb"))
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
     y_list = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
     # print("X :",X)

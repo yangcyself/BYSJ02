@@ -73,7 +73,7 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
 
     # the danger points
     DcA,DcB,Dcg = traj[-1][4] # the Continues dynamics of the terminal point
-    tt,ts,tx,tu,_ = traj[-1] # the time, state, augmented state, inputu of the terminal state
+    tt,ts,tx,tu,tDc = traj[-1] # the time, state, augmented state, inputu of the terminal state
     if(tt<1.6*safeDT):
         return [],[]
     # Note, the `-DT` means that the time goes backward
@@ -86,6 +86,7 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
     # find the `u` that maximizes the DBF (in continues dynamics)
     u = GP.MAXTORQUE * np.sign(((2*tx .T @ HA + Hb.T)@DBf).T)
     x_danger = [(DA @ tx + DB @ uu + Dg,uu,(DAf,DBf,Dgf))  for uu in [u, 2*u]] # 2*u means goes back with larger torque also means cannot be saved by u
+    x_danger.append((tx, tu, tDc))
 
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
@@ -117,11 +118,11 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     """
     HA,Hb,Hc = CBF
 
-    # try: DEBUGGING CLOUSE
-    #     samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    #     print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
+    # try: #DEBUGGING CLOUSE
+        # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
+        # samples = pkl.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/samples0.json","rb"))
+        # print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
     # except FileNotFoundError as ex:
-
     if pool is None:
         samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
     else:
@@ -186,6 +187,14 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
                 ).reshape((1,-1))
                 for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)],axis=0)
 
+    def PSDCons(w):
+        """
+        The negative weight matrix should be positive definite
+        """
+        A,b,c = kernel.GetParam(w[:lenw])
+        return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
+
+
     def containCons(w):
         """
         The constraint that the new CBF should be contained by the old CBF
@@ -215,13 +224,13 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
                    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac},
                    {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line
-                   ]
+                   {'type':'ineq','fun':PSDCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
     bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
-    bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
+    # bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
     bounds[-lenfu:,1] =  np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
 
@@ -297,7 +306,7 @@ class LearnCBFSession(LearnCBFSession_t):
                     CBF = (np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"]))
                     A,b,c, res, samples =  learnCBFIter(CBF, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, pool = pool)
                     self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
-                    sampleFile = os.path.join(self.resultPath,"samples%d.json"%i)
+                    sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
                     self.IterationInfo_[-1]["sampleFile"] = sampleFile
                     pkl.dump(samples,open(sampleFile,"wb"))
 
