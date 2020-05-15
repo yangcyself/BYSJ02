@@ -204,8 +204,9 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0) *0
     # set the init value to be an eclipse around the mean of feasible points
-    x0[[int((41-i)*i/2) for i in range(dim)]] = -1
+    x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
     pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
+    pos_x_mean[0] = 0
     x0[lenw-dim-1:lenw-1] = 2*pos_x_mean
     x0[lenw-1] = 1 - sqeuclidean(pos_x_mean) # set the c to be 1, so that the A should be negative definite
     x0[lenw:-lenfu]  *= 0 # set the init of c to be zero
@@ -217,7 +218,7 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
                    ]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
-    bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
+    bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
     bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
