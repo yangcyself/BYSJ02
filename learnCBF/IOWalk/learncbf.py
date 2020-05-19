@@ -7,7 +7,8 @@ GP.CATCH_KEYBOARD_INTERRPUT = False
 from scipy.linalg import sqrtm,expm
 from ctrl.CBFWalker import *
 from learnCBF.IOWalk.IOWalkUtil import *
-from learnCBF.FittingUtil import kernel, sqeuclidean, dumpJson
+from learnCBF.FittingUtil import sqeuclidean, dumpJson
+from learnCBF.FittingUtil import kernel_Poly1 as kernel
 import dill as pkl
 from ExperimentSecretary.Core import Session
 from glob import glob
@@ -140,7 +141,7 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     
     X_aug = kernel.augment(X)
     y = np.array(y).reshape((-1))
-    lenw = int((dim+1)*dim/2 + dim + 1)
+    lenw = kernel.GetParamDimension(dim)
     print("X_aug shape", X_aug.shape)
     print("y shape", y.shape)
 
@@ -187,7 +188,7 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
                 ).reshape((1,-1))
                 for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)],axis=0)
 
-    def PSDCons(w):
+    def PSDCons(w): # [POLY2]
         """
         The negative weight matrix should be positive definite
         """
@@ -195,7 +196,7 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
         return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
 
 
-    def containCons(w):
+    def containCons(w): # [POLY2]
         """
         The constraint that the new CBF should be contained by the old CBF
             This constraint is enforced by letting all points on the axis be inside of the old CBF
@@ -212,22 +213,24 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
     options = {"maxiter" : 500, "disp"    : True,  "verbose":1, 'iprint':2} # 'iprint':2,
     lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0) *0
-    # set the init value to be an eclipse around the mean of feasible points
-    x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
-    pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
-    pos_x_mean[0] = 0
-    x0[lenw-dim-1:lenw-1] = 2*pos_x_mean
-    x0[lenw-1] = 1 - sqeuclidean(pos_x_mean) # set the c to be 1, so that the A should be negative definite
+    # set the init value to be an eclipse around the mean of feasible points [POLY2]
+    # x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
+    # pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
+    # pos_x_mean[0] = 0
+    # x0[lenw-dim-1:lenw-1] = 2*pos_x_mean
+    # x0[lenw-1] = 1 - sqeuclidean(pos_x_mean) # set the c to be 1, so that the A should be negative definite
+
     x0[lenw:-lenfu]  *= 0 # set the init of c to be zero
     x0[-lenfu:] = uvec # set the init of u_ to be u
 
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
-                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac},
-                   {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line
-                   {'type':'ineq','fun':PSDCons}]
+                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
+                #    {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line # [POLY2]
+                #    {'type':'ineq','fun':PSDCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
-    bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more
+    # bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY2]
+    bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY1]
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
     # bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
