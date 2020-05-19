@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     # Polyparameter = json.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/CBF1.json","r")) # trained with 500 samples
     Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
-    HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
+    HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), Polyparameter["c"]
 
     print("HA_CBF[4][4]",HA_CBF[4][4])
     print("HA_CBF[14][14] :",HA_CBF[14][14])

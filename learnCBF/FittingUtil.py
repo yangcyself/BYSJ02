@@ -95,7 +95,16 @@ sqeuclidean = lambda x: np.inner(x, x) # L2 NORM SQUARE
 def dumpJson(A,b,c,fileName = "data/CBF/tmp2.json"):
     json.dump({"A":A.tolist(),"b":b.tolist(),"c":c},open(fileName,"w"))
 
+
+def dumpCBFsJson(CBFs,fileName = "data/CBF/tmp2.json"):
+    json.dump([{"A":A.tolist(),"b":b.tolist(),"c":c} for A,b,c in CBFs], open(fileName,"w") )
+
+
 def loadJson(fileName = "data/CBF/tmp2.json"):
     param = json.load(open(fileName,"r"))
-    return np.array(param["A"]), np.array(param["b"]), np.array(param["c"])
+    return np.array(param["A"]), np.array(param["b"]), param["c"]
+
+def loadCBFsJson(fileName = "data/CBF/tmp2.json"):
+    Polyparameters = json.load(open(fileName,"r")) 
+    return [(np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), Polyparameter["c"]) for Polyparameter in Polyparameters]
 

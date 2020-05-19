@@ -175,7 +175,7 @@ class FitCBFSession_t(Session):
     pass
 
 class FitCBFSession(FitCBFSession_t):
-    def __init__(self, loaddir, name = "tmp", mc = 0.01,  gamma = 1, gamma2=1, class_weight = None, algorithm = "default", trainNum = 10):
+    def __init__(self, loaddir, name = "tmp", mc = 100,  gamma = 1, gamma2=1, class_weight = None, algorithm = "default", trainNum = 10):
         super().__init__(expName="IOWalkFit")
         self.X = []
         self.y = []

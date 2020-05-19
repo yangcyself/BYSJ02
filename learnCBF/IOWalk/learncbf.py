@@ -7,7 +7,7 @@ GP.CATCH_KEYBOARD_INTERRPUT = False
 from scipy.linalg import sqrtm,expm
 from ctrl.CBFWalker import *
 from learnCBF.IOWalk.IOWalkUtil import *
-from learnCBF.FittingUtil import sqeuclidean, dumpJson
+from learnCBF.FittingUtil import sqeuclidean, dumpCBFsJson, loadCBFsJson
 from learnCBF.FittingUtil import kernel_Poly1 as kernel
 import dill as pkl
 from ExperimentSecretary.Core import Session
@@ -35,12 +35,12 @@ def representEclips(A,b,c):
     return points,E,-c
 
 
-def sampler(CBF, BalphaStd, Balpha = Balpha, CBFList = None):
+def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     """
     sample a lot of trajectories, stop when the CBF constraint cannot be satisfied
         return sampled trajectories
     """
-    HA,Hb,Hc = CBF
+    # assert(len(CBFs)==1) #[POLY2]
 
     ct = CBF_WALKER_CTRL()
     reset(ct)
@@ -49,32 +49,33 @@ def sampler(CBF, BalphaStd, Balpha = Balpha, CBFList = None):
     Kd = np.log(Kp)*np.random.rand()*4
     CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
     CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
+    CBF_WALKER_CTRL.CBF_CLF_QP.reg(ct,mc_b = mc)
     # CBFList = [] if CBFList is None else CBFList
     # [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for HA_CBF,Hb_CBF,Hc_CBF in CBFList]
-    ct.addCBF(HA,Hb,Hc)
-
+    [ct.addCBF(*CBF) for CBF in CBFs]
     Traj = []
     def callback_traj(obj):
-        Traj.append((obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP, (obj.DHA, obj.DHB, obj.DHg)))
+        Traj.append((obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP, (obj.DHA, obj.DHB, obj.DHg), obj.LOG_CBF_ConsValue))
     ct.callbacks.append(callback_traj)
     def callback_break(obj):
-        return not (obj.LOG_CBF_SUCCESS and obj.LOG_CBF_ConsValue[0]>0)
+        # return not (obj.LOG_CBF_ConsValue[0]>0) #[POLY2]
+        return not (all(obj.LOG_CBF_ConsValue>0))
     ct.callbacks.append(callback_break)
     ct.step(5)
     return Traj
 
 
-def GetPoints(traj,CBF, dangerDT, safeDT):
+def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
     """
     get safe points and danger points given a trajectory.
         The safe points are the points before `safeDT` of the termination
         The danger points are the points got by re
     """
-    HA,Hb,Hc = CBF
+    # assert(len(CBFs)==1) #[POLY2]
 
     # the danger points
     DcA,DcB,Dcg = traj[-1][4] # the Continues dynamics of the terminal point
-    tt,ts,tx,tu,tDc = traj[-1] # the time, state, augmented state, inputu of the terminal state
+    tt,ts,tx,tu,tDc,tConsV = traj[-1] # the time, state, augmented state, inputu, CBFConsValue of the terminal state
     if(tt<1.6*safeDT):
         return [],[]
     # Note, the `-DT` means that the time goes backward
@@ -84,22 +85,42 @@ def GetPoints(traj,CBF, dangerDT, safeDT):
     sysdtf = expm(np.concatenate([ dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
     DAf,DBf,Dgf = sysdtf[:DcA.shape[0],:DcA.shape[1]], sysdtf[:DcA.shape[0],DcA.shape[1]:-1], sysdtf[:DcA.shape[0],-1:] # The dynamics with the time goes forwards
     Dg = Dg.reshape(-1)
-    # find the `u` that maximizes the DBF (in continues dynamics)
-    u = GP.MAXTORQUE * np.sign(((2*tx .T @ HA + Hb.T)@DBf).T)
-    x_danger = [(DA @ tx + DB @ uu + Dg,uu,(DAf,DBf,Dgf))  for uu in [u, 2*u]] # 2*u means goes back with larger torque also means cannot be saved by u
-    x_danger.append((tx, tu, tDc))
-
+    Dcg = Dcg.reshape(-1)
+    # find the `u` that maximizes the DB (in continues dynamics)
+    FoundViolatedCBF = False
+    for i,CBF in enumerate(CBFs):
+        HA,Hb,Hc = CBF
+        # u = GP.MAXTORQUE * np.sign(((2*tx .T @ HA + Hb.T)@DBf).T)
+        u = GP.MAXTORQUE * np.sign(((2*tx .T @ HA + Hb.T)@DcB).T)
+        if(mc * (tx.T @ HA @ tx + Hb.T @ tx + Hc) + (2*tx .T @ HA + Hb.T)@(DcA @ tx + DcB @ u + Dcg) < 0): # even the best u cannot make the CBF cons greater than 0
+            FoundViolatedCBF = True
+            assert tConsV[i]<0, "The CBF cons is not violated but the best u cannot save it"
+            x_danger = [(DA @ tx + DB @ uu + Dg,uu,(DAf,DBf,Dgf))  for uu in [u, 1.5*u]] # 2*u means goes back with larger torque also means cannot be saved by u
+            x_danger.append((tx, tu, tDc))
+    assert FoundViolatedCBF, "No CBF is found to be violated in the last step"
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
     return x_danger,x_safe
 
 
 def getAsample(inputarg):
-    CBF,dangerDT,safeDT = inputarg
-    return GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT)
+    if(len(inputarg)==4): inputarg.append(None) # ExceptionHandel
+    CBF,dangerDT,safeDT,mc, ExceptionHandel = inputarg
+    traj = sampler(CBF, mc, BalphaStd = 0.03)
+    try:
+        x_danger,x_safe = GetPoints(traj,CBF, mc,dangerDT,safeDT)
+    except AssertionError as ex:
+        if(ExceptionHandel) is not None:
+            ExceptionHandel(traj,ex)
+            print("Record Exception:", str(ex))
+            x_danger,x_safe = [],[]
+        else:
+            raise ex
+    return x_danger,x_safe
 
 
-def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None, pool = None):
+def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None, 
+                pool = None, sampleExceptionHander = None):
     """
     One iteration of the learnCBF: input a CBF, calls sampler and GetPints, and return a CBF
     
@@ -117,7 +138,7 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
         s.t.    y_i(x_i^T w + b) > 1 //SVM condition
                 y_i(dB(x_i,u_i)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
     """
-    HA,Hb,Hc = CBF
+    # assert(len(CBFs)==1) #[POLY2]
 
     # try: #DEBUGGING CLOUSE
         # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
@@ -125,10 +146,9 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
         # print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
     # except FileNotFoundError as ex:
     if pool is None:
-        samples = [GetPoints(sampler(CBF,BalphaStd = 0.03),CBF,dangerDT,safeDT) for i in range(numSample)]
+        samples = [getAsample((CBFs, dangerDT,safeDT, mc, sampleExceptionHander)) for i in range(numSample)]
     else:
-        
-        samples = pool.map(getAsample, [(CBF,dangerDT,safeDT)]*numSample)
+        samples = pool.map(getAsample, [(CBFs,dangerDT,safeDT,mc, sampleExceptionHander)]*numSample)
     #     pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
 
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
@@ -188,22 +208,22 @@ def learnCBFIter(CBF, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dang
                 ).reshape((1,-1))
                 for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)],axis=0)
 
-    def PSDCons(w): # [POLY2]
-        """
-        The negative weight matrix should be positive definite
-        """
-        A,b,c = kernel.GetParam(w[:lenw])
-        return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
+    # def PSDCons(w): # [POLY2]
+    #     """
+    #     The negative weight matrix should be positive definite
+    #     """
+    #     A,b,c = kernel.GetParam(w[:lenw])
+    #     return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
 
 
-    def containCons(w): # [POLY2]
-        """
-        The constraint that the new CBF should be contained by the old CBF
-            This constraint is enforced by letting all points on the axis be inside of the old CBF
-        """
-        A,b,c = kernel.GetParam(w[:lenw])
-        points,E,_c = representEclips(A,b,c)
-        return np.array([p.T@HA@p + Hb.T@p + Hc for p in points]+list(E)+[_c])
+    # def containCons(w): # [POLY2]
+    #     """
+    #     The constraint that the new CBF should be contained by the old CBF
+    #         This constraint is enforced by letting all points on the axis be inside of the old CBF
+    #     """
+    #     A,b,c = kernel.GetParam(w[:lenw])
+    #     points,E,_c = representEclips(A,b,c)
+    #     return np.array([p.T@HA@p + Hb.T@p + Hc for p in points]+list(E)+[_c])
 
 
     # # TODO
@@ -267,9 +287,10 @@ class LearnCBFSession_t(Session):
     pass
 
 class LearnCBFSession(LearnCBFSession_t):
-    def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
+    def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
                     numSample = 200, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
-        ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
+        # ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
+        ProcessNum = None # IMPORTANT!!! The Behavior of Pybullet in multiprocess has not been tested
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
                     numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, ProcessNum = ProcessNum)
 
@@ -282,7 +303,7 @@ class LearnCBFSession(LearnCBFSession_t):
         self.numSample = numSample
         self.dangerDT = dangerDT
         self.safeDT = safeDT
-        self.CBF0 = CBF0
+        self.CBF0 = [CBF0]
         self.ProcessNum = ProcessNum
     
         self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)
@@ -290,43 +311,58 @@ class LearnCBFSession(LearnCBFSession_t):
         self.add_info("resultPath",self.resultPath)
 
         self.IterationInfo_ = [] # a list of dict: {start_time, end_time, sampleFile, CBFFile}
-        
+        self.SampleExceptions_ = []
+    
+    def sampleExceptionHander(self,traj,ex):
+        dumpname = os.path.abspath(os.path.join(self.resultPath,"ExceptionTraj%d.pkl"%time.time()))
+        # obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP, (obj.DHA, obj.DHB, obj.DHg), obj.LOG_CBF_ConsValue)
+        pkl.dump({
+            "t": [t[0] for t in traj],
+            "state": [t[1] for t in traj],
+            "Hx": [t[2] for t in traj],
+            "u": [t[3] for t in traj],
+            "CBFCons": [t[5] for t in traj]
+        } ,open(dumpname,"wb"))
+        self.SampleExceptions_.append({"TrajPath":dumpname,"Exception":str(ex)})
 
+        
     def body(self):
         CTRL.restart()
         NoKeyboardInterrupt = True
-        dumpJson(*self.CBF0,os.path.join(self.resultPath,"CBF0.json"))
-        currentCBF = self.CBF0
-        with Pool(self.ProcessNum) as pool:
-            for i in range(self.Iteras):
-                assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
-                try:
-                    currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%i)
-                    self.IterationInfo_.append({"start_time" : str(datetime.datetime.now()),
-                                                "inputCBFFile": currentCBFFile})
-                    # read from the current CBF file to avoid mistake
-                    Polyparameter = json.load(open(currentCBFFile,"r")) 
-                    CBF = (np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"]))
-                    A,b,c, res, samples =  learnCBFIter(CBF, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, pool = pool)
-                    self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
-                    sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
-                    self.IterationInfo_[-1]["sampleFile"] = sampleFile
-                    pkl.dump(samples,open(sampleFile,"wb"))
+        dumpCBFsJson(self.CBF0,os.path.join(self.resultPath,"CBF0.json"))
+        # with Pool(self.ProcessNum) as pool:
+        pool = None
+        for i in range(self.Iteras):
+            assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
+            try:
+                currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%i)
+                self.IterationInfo_.append({"start_time" : str(datetime.datetime.now()),
+                                            "inputCBFFile": currentCBFFile})
+                # read from the current CBF file to avoid mistake
+                CBFs = loadCBFsJson(currentCBFFile)
+                A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, pool = pool, sampleExceptionHander=self.sampleExceptionHander)
+                self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
+                sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
+                self.IterationInfo_[-1]["sampleFile"] = sampleFile
+                pkl.dump(samples,open(sampleFile,"wb"))
 
-                    currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
-                    dumpJson(A,b,c,currentCBFFile)            
-                    self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
-                    self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
+                currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
+                dumpCBFsJson(CBFs + [(A,b,c)],currentCBFFile)            
+                self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
+                self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
 
-                except KeyboardInterrupt as ex:
-                    NoKeyboardInterrupt = False
+            except KeyboardInterrupt as ex:
+                NoKeyboardInterrupt = False
             
     @LearnCBFSession_t.column
     def IterationInfo(self):
         return self.IterationInfo_
 
+    @LearnCBFSession_t.column
+    def SampleExceptions(self):
+        return self.SampleExceptions_
 
 if __name__ == '__main__':
     s = LearnCBFSession(CBF_GEN_conic(10,10000,(0,1,0.1,4)),
-        name = "redLegQ2")
+        name = "redLegQ1")
     s()

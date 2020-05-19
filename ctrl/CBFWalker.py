@@ -103,7 +103,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
 
 
     @CTRL_COMPONENT
-    def CBF_CLF_QP(self, mc_b = 1e-2, ml = 0.00001):
+    def CBF_CLF_QP(self, mc_b = 100, ml = 0.00001):
         """
         ((self.BF,self.dBF), (self.CF, self.dCF), self.HisCBF) -> setJointTorques()
         args mc: gamma
@@ -120,9 +120,9 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
                                 for (LF,(dL_b, dL_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if not isB])
 
         def CBF_cons_gen(dB_b,dB_c,BF):
-            return lambda u: mc_b * (dB_b @ u +  dB_c) + BF
+            return lambda u: (dB_b @ u +  dB_c) + mc_b * BF
         def CBF_cons_jac_gen(dB_b,dB_c):
-            return lambda u: mc_b * dB_b
+            return lambda u: dB_b
 
         CBF_CONS = [CBF_cons_gen(dB_b,dB_c,BF) for (BF,(dB_b, dB_c),isB, w) in zip(self.HF,self.dHF,self.HisCBF,self.Hw) if isB]
         constraints = [{'type':'ineq','fun': CBF_cons_gen(dB_b,dB_c,BF), "jac":CBF_cons_jac_gen(dB_b,dB_c) }
@@ -156,10 +156,10 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         if not self.LOG_CBF_SUCCESS:
             print("Optimization Message:", res.message)
         # print("CBF Result: ",[c(res_x) for c in CBF_CONS])
-        self.LOG_CBF_ConsValue = [c(res_x) for c in CBF_CONS]
+        self.LOG_CBF_ConsValue = np.array([c(res_x) for c in CBF_CONS])
         self.LOG_CBF_Value = self.HF
-        self.LOG_dCBF_Value = [dB_b@res_x + dB_c for dB_b, dB_c in  self.dHF]
-        self.LOG_CBF_Drift = [dB_c for dB_b, dB_c in  self.dHF]
+        self.LOG_dCBF_Value = np.array([dB_b@res_x + dB_c for dB_b, dB_c in  self.dHF]) 
+        self.LOG_CBF_Drift = np.array([dB_c for dB_b, dB_c in  self.dHF]) 
         if(self._v):
             print("Torque:", res_x)
             print("Fr:", self.J_gc_bar.T @ res_x)
