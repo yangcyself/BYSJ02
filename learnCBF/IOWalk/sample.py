@@ -210,8 +210,8 @@ CBF_WALKER_CTRL.restart()
             
 if __name__ == '__main__':
     s = SampleSession(Ntraj=100, readTraj = None,
-        CBFList=[{"type":"CBF_GEN_conic", "args":((10,100,(0,1,0.1,4)))},
-                 {"type":"CBF_GEN_conic", "args":((10,100,(0,1,0.1,6)))},
-                 {"type":"Json", "args": "data/CBF/Feasible_2020-05-14-12_30_22.json"}])
+        CBFList=[{"type":"CBF_GEN_conic", "args":(10,100,(0,1,0.1,4))},
+                 {"type":"CBF_GEN_conic", "args":(10,100,(0,1,0.1,6))},
+                 {"type":"CBF_GEN_degree1", "args": (10,(0,1,-0.1,0))}])
     s()
     
