@@ -9,7 +9,8 @@ from ExperimentSecretary.Core import Session
 
 import sys
 sys.path.append(".")
-from learnCBF.FittingUtil import kernel, sqeuclidean, dumpJson
+from learnCBF.FittingUtil import sqeuclidean, dumpJson
+from learnCBF.FittingUtil import kernel_Poly2 as kernel
 
 import globalParameters as GP
 GP.GUIVIS = False
