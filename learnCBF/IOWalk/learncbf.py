@@ -8,7 +8,8 @@ from scipy.linalg import sqrtm,expm
 from ctrl.CBFWalker import *
 from learnCBF.IOWalk.IOWalkUtil import *
 from learnCBF.FittingUtil import sqeuclidean, dumpCBFsJson, loadCBFsJson
-from learnCBF.FittingUtil import kernel_Poly1 as kernel
+# from learnCBF.FittingUtil import kernel_Poly1 as kernel
+from learnCBF.FittingUtil import kernel_Poly2 as kernel #[POLY2]
 import dill as pkl
 from ExperimentSecretary.Core import Session
 from glob import glob
@@ -40,7 +41,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     sample a lot of trajectories, stop when the CBF constraint cannot be satisfied
         return sampled trajectories
     """
-    # assert(len(CBFs)==1) #[POLY2]
+    assert(len(CBFs)==1) #[POLY2]
 
     ct = CBF_WALKER_CTRL()
     reset(ct)
@@ -58,8 +59,8 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
         Traj.append((obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP, (obj.DHA, obj.DHB, obj.DHg), obj.LOG_CBF_ConsValue))
     ct.callbacks.append(callback_traj)
     def callback_break(obj):
-        # return not (obj.LOG_CBF_ConsValue[0]>0) #[POLY2]
-        return not (all(obj.LOG_CBF_ConsValue>0))
+        return not (obj.LOG_CBF_ConsValue[0]>0) #[POLY2]
+        # return not (all(obj.LOG_CBF_ConsValue>0))
     ct.callbacks.append(callback_break)
     ct.step(5)
     return Traj
@@ -71,7 +72,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
         The safe points are the points before `safeDT` of the termination
         The danger points are the points got by re
     """
-    # assert(len(CBFs)==1) #[POLY2]
+    assert(len(CBFs)==1) #[POLY2]
 
     # the danger points
     DcA,DcB,Dcg = traj[-1][4] # the Continues dynamics of the terminal point
@@ -138,7 +139,7 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
         s.t.    y_i(x_i^T w + b) > 1 //SVM condition
                 y_i(dB(x_i,u_i)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
     """
-    # assert(len(CBFs)==1) #[POLY2]
+    assert(len(CBFs)==1) #[POLY2]
 
     # try: #DEBUGGING CLOUSE
         # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
@@ -194,7 +195,6 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
 
     # [w.T @ kernel.jac(x) @ Dyn_A @ x  +  
     #                 MAX_INPUT * np.linalg.norm(Dyn_B.T @ kernel.jac(x).T @ w, ord = 1) for x in X_c])
-
     def feasibleCons(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         return np.array([w.T @ kernel.jac(x) @ (A @ x + B @ (u_[i*udim:(i+1)*udim]) + g) + mc * xa @ w
@@ -208,22 +208,23 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
                 ).reshape((1,-1))
                 for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)],axis=0)
 
-    # def PSDCons(w): # [POLY2]
-    #     """
-    #     The negative weight matrix should be positive definite
-    #     """
-    #     A,b,c = kernel.GetParam(w[:lenw])
-    #     return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
+    HA,Hb,Hc = CBFs[0] # [POLY2]
+    def PSDCons(w): # [POLY2]
+        """
+        The negative weight matrix should be positive definite
+        """
+        A,b,c = kernel.GetParam(w[:lenw])
+        return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
 
 
-    # def containCons(w): # [POLY2]
-    #     """
-    #     The constraint that the new CBF should be contained by the old CBF
-    #         This constraint is enforced by letting all points on the axis be inside of the old CBF
-    #     """
-    #     A,b,c = kernel.GetParam(w[:lenw])
-    #     points,E,_c = representEclips(A,b,c)
-    #     return np.array([p.T@HA@p + Hb.T@p + Hc for p in points]+list(E)+[_c])
+    def containCons(w): # [POLY2]
+        """
+        The constraint that the new CBF should be contained by the old CBF
+            This constraint is enforced by letting all points on the axis be inside of the old CBF
+        """
+        A,b,c = kernel.GetParam(w[:lenw])
+        points,E,_c = representEclips(A,b,c)
+        return np.array([p.T@HA@p + Hb.T@p + Hc for p in points]+list(E)+[_c])
 
 
     # # TODO
@@ -233,24 +234,24 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     options = {"maxiter" : 500, "disp"    : True,  "verbose":1, 'iprint':2} # 'iprint':2,
     lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0) *0
-    # set the init value to be an eclipse around the mean of feasible points [POLY2]
-    # x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
-    # pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
-    # pos_x_mean[0] = 0
-    # x0[lenw-dim-1:lenw-1] = 2*pos_x_mean
-    # x0[lenw-1] = 1 - sqeuclidean(pos_x_mean) # set the c to be 1, so that the A should be negative definite
+    ## set the init value to be an eclipse around the mean of feasible points [POLY2]
+    x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
+    pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
+    pos_x_mean[0] = 0
+    x0[lenw-dim-1:lenw-1] = 2*pos_x_mean
+    x0[lenw-1] = 1 - sqeuclidean(pos_x_mean) # set the c to be 1, so that the A should be negative definite
 
     x0[lenw:-lenfu]  *= 0 # set the init of c to be zero
     x0[-lenfu:] = uvec # set the init of u_ to be u
 
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
-                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
-                #    {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line # [POLY2]
-                #    {'type':'ineq','fun':PSDCons}]
+                   {'type':'ineq','fun':feasibleCons, "jac":feasibleJac},
+                   {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line # [POLY2]
+                   {'type':'ineq','fun':PSDCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
-    # bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY2]
-    bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY1]
+    bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY2]
+    # bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY1]
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
     # bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
@@ -288,7 +289,7 @@ class LearnCBFSession_t(Session):
 
 class LearnCBFSession(LearnCBFSession_t):
     def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
-                    numSample = 200, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
+                    numSample = 20, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
         # ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
         ProcessNum = None # IMPORTANT!!! The Behavior of Pybullet in multiprocess has not been tested
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
@@ -347,7 +348,8 @@ class LearnCBFSession(LearnCBFSession_t):
                 pkl.dump(samples,open(sampleFile,"wb"))
 
                 currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
-                dumpCBFsJson(CBFs + [(A,b,c)],currentCBFFile)            
+                # dumpCBFsJson(CBFs + [(A,b,c)],currentCBFFile) # [POLY1]
+                dumpCBFsJson([(A,b,c)],currentCBFFile)  # [POLY2]
                 self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
                 self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
 
