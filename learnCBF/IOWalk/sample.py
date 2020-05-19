@@ -85,7 +85,9 @@ class SampleSession_t(Session):
         self.GaussionP = GaussionProcess(kernel = kernel, sigma2=0.01) 
 
         ##parse CBFList
-        self.CBFList = [CBF_GEN_conic(*B["args"]) if B["type"]=='CBF_GEN_conic'  else loadJson(B["args"])
+        self.CBFList = [ ( CBF_GEN_conic(*B["args"])        if B["type"]=='CBF_GEN_conic'  
+                         else loadJson(B["args"])           if B["type"]== "Json"
+                         else CBF_GEN_degree1(*B["args"])   if B["type"]== "CBF_GEN_degree1" else None)
                             for B in CBFList]
 
         self.add_info("BalphaStd",self.BalphaStd)
