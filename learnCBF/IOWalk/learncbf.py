@@ -59,7 +59,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     ct.callbacks.append(callback_traj)
     def callback_break(obj):
         # return not (obj.LOG_CBF_ConsValue[0]>0) #[POLY2]
-        return not (all(obj.LOG_CBF_ConsValue>0))
+        return not (all(obj.LOG_CBF_ConsValue>-1e-6))
     ct.callbacks.append(callback_break)
     ct.step(5)
     return Traj
