@@ -60,7 +60,8 @@ playBackWalkerCtrl.restart()
 # traj = pkl.load(open("data/Traj/1589161354.pkl","rb"))
 
 # traj = pkl.load(open("data/Traj/1589207105.pkl","rb"))
-traj = pkl.load(open("data/Traj/1589273990.pkl","rb"))
+# traj = pkl.load(open("data/Traj/1589273990.pkl","rb"))
+traj = pkl.load(open("data/learncbf/redLegQ1_2020-05-19-09_12_04/ExceptionTraj1589850846.pkl","rb"))
 
 ct = playBackWalkerCtrl(traj = traj)
 # ct.setState(init_state)
