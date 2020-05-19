@@ -287,7 +287,7 @@ class LearnCBFSession_t(Session):
     pass
 
 class LearnCBFSession(LearnCBFSession_t):
-    def __init__(self, CBF0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
+    def __init__(self, CBFs0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
                     numSample = 200, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
         # ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
         ProcessNum = None # IMPORTANT!!! The Behavior of Pybullet in multiprocess has not been tested
@@ -303,7 +303,7 @@ class LearnCBFSession(LearnCBFSession_t):
         self.numSample = numSample
         self.dangerDT = dangerDT
         self.safeDT = safeDT
-        self.CBF0 = [CBF0]
+        self.CBFs0 = CBFs0
         self.ProcessNum = ProcessNum
     
         self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)
@@ -329,7 +329,7 @@ class LearnCBFSession(LearnCBFSession_t):
     def body(self):
         CTRL.restart()
         NoKeyboardInterrupt = True
-        dumpCBFsJson(self.CBF0,os.path.join(self.resultPath,"CBF0.json"))
+        dumpCBFsJson(self.CBFs0,os.path.join(self.resultPath,"CBF0.json"))
         # with Pool(self.ProcessNum) as pool:
         pool = None
         for i in range(self.Iteras):
@@ -363,6 +363,6 @@ class LearnCBFSession(LearnCBFSession_t):
         return self.SampleExceptions_
 
 if __name__ == '__main__':
-    s = LearnCBFSession(CBF_GEN_conic(10,10000,(0,1,0.1,4)),
-        name = "redLegQ1")
+    s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), CBF_GEN_conic(10,10000,(0,1,0.1,6))] ,
+        name = "twoLegQ1")
     s()

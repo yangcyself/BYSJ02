@@ -12,7 +12,7 @@ from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
 import pickle as pkl
 import json
-
+from learnCBF.FittingUtil import loadCBFsJson
 
 
 ct = CBF_WALKER_CTRL()
@@ -55,27 +55,30 @@ Polyparameter = json.load(open("data/CBF/Feasible_2020-05-14-12_30_22.json","r")
 # Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-22_57_23/CBF2.json","r")) # the CBF0 of walking
 # Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_44_25/CBF1.json","r")) # the CBF0 of walking
 # Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_16_18/CBF1.json","r")) # the CBF0 of walking
+
+CBFs = loadCBFsJson("data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF2.json") # redleg 
+[ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 # Make the init_state positive in CBF
 
 # ct.resetFlags()
-IOLinearCTRL.state.set(ct,init_state)
-IOLinearCTRL.contact_mask.set(ct,np.array((True,False)))
-HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
-HA_CBF[0,:] = 0
-HA_CBF[:,0] = 0
-Hb_CBF[0] = 0
+# IOLinearCTRL.state.set(ct,init_state)
+# IOLinearCTRL.contact_mask.set(ct,np.array((True,False)))
+# HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
+# HA_CBF[0,:] = 0
+# HA_CBF[:,0] = 0
+# Hb_CBF[0] = 0
 # sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
 # assert(sign == 1)
 # HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
 
-ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
+# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
 # add CBF to constraint on the leg
-ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))
-ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,6)))
-Av,bv,cv = np.zeros((20,20)),np.zeros(20),1
-bv[10] = 1
-ct.addCBF(Av,bv,cv)
+# ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))
+# ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,6)))
+# Av,bv,cv = np.zeros((20,20)),np.zeros(20),1
+# bv[10] = 1
+# ct.addCBF(Av,bv,cv)
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,4)))
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,6)))
 
@@ -126,26 +129,32 @@ def fw_plot(dim=0):
     plt.grid()
     plt.draw()
 
-def CBFConsValue_plot(dim = 0):
+def CBFConsValue_plot(dim = None):
     plt.figure()
-    plt.plot([t[0] for t in Traj], [t[7][dim] for t in Traj], label = "CBF constraint value dim %d"%dim)
+    if(type(dim)==int): dim = [dim] 
+    elif dim is None: dim = range(len(Traj[0][7]))
+    [plt.plot([t[0] for t in Traj], [t[7][d] for t in Traj], label = "CBF constraint value dim %d"%d) for d in dim]
     plt.title("CBFConsValue_plot")
     plt.legend()
     plt.grid()
     plt.draw()
 
 
-def CBFvalue_plot(dim = 0):
+def CBFvalue_plot(dim = None):
     plt.figure()
-    plt.plot([t[0] for t in Traj], [t[8][dim] for t in Traj], label = "CBF value dim %d"%dim)
+    if(type(dim)==int): dim = [dim]
+    elif dim is None: dim = range(len(Traj[0][7]))
+    [plt.plot([t[0] for t in Traj], [t[8][d] for t in Traj], label = "CBF value dim %d"%d) for d in dim]
     plt.title("CBFvalue_plot")
     plt.legend()
     plt.grid()
     plt.draw()
 
-def CBFdvalue_plot(dim = 0):
+def CBFdvalue_plot(dim = None):
     plt.figure()
-    plt.plot([t[0] for t in Traj], [t[10][dim] for t in Traj], label = "CBF dvalue dim %d"%dim)
+    if(type(dim)==int): dim = [dim]
+    elif dim is None: dim = range(len(Traj[0][7]))
+    [plt.plot([t[0] for t in Traj], [t[10][d] for t in Traj], label = "CBF dvalue dim %d"%d) for d  in dim]
     plt.title("CBFdvalue_plot")
     plt.legend()
     plt.grid()
@@ -194,13 +203,13 @@ if __name__ == "__main__":
     # IOcmd_plot(dim = 3)
 
     # CBF_plot()
-    CBFConsValue_plot(dim = 0)
+    CBFConsValue_plot(dim = [1,2])
     # CBFConsValue_plot(dim = 1)
-    CBFvalue_plot(dim = 0)
+    CBFvalue_plot(dim = [1,2])
     # CBFvalue_plot(dim = 1)
     # CBFDrift_plot(dim = 0)
     # CBFDrift_plot(dim = 1)
-    CBFdvalue_plot(dim = 0)
+    CBFdvalue_plot(dim = [1,2])
     # CBFdvalue_plot(dim = 1)
     # Fr_plot()
     
