@@ -45,15 +45,15 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 300, kd = 20)
 
 
-# CBFs = loadCBFsJson("data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF2.json") # redleg 
-# [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
+CBFs = loadCBFsJson("data/learncbf/twoLegQ1_2020-05-19-11_14_42/CBF5.json") # twoleg 
+[ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
 
 # Polyparameter = json.load(open("data/CBF/Feasible_2020-05-19-09_30_24.json","r")) # first CBF
-# Polyparameter = json.load(open("data/CBF/Double_2020-05-15-07_06_27.json","r")) # Second CBF
+# Polyparameter = json.load(open("data/CBF/OnHandCraft_2020-05-19-16_05_18.json","r"))
 
 # Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-22_57_23/CBF2.json","r")) # the CBF0 of walking
 # Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_44_25/CBF1.json","r")) # the CBF0 of walking
@@ -72,9 +72,9 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = 500, kd = 20)
 # ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
 # add CBF to constraint on the leg
-ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))
-ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,6)))
-ct.addCBF(*CBF_GEN_degree1(10,(0,1,-0.1,0))) # the x-velocity should be greater than 0.1
+# ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))
+# ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,6)))
+# ct.addCBF(*CBF_GEN_degree1(10,(0,1,-0.1,0))) # the x-velocity should be greater than 0.1
 
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,4)))
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,6)))
@@ -184,7 +184,7 @@ reset()
 
 if __name__ == "__main__":
     with Session(__file__) as s:
-        ct.step(5)
+        ct.step(30)
         dumpname = os.path.abspath(os.path.join("./data/Traj","%d.pkl"%time.time()))
         pkl.dump({
             "t": [t[0] for t in Traj],

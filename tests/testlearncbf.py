@@ -24,6 +24,7 @@ if __name__ == '__main__':
     from util.visulization import QuadContour
     import matplotlib.pyplot as plt
     import json
+    from learnCBF.FittingUtil import loadCBFsJson
 
     # pts = QuadContour(*CBF_GEN_conic(10,100000,(0,1,0.1,4)), np.arange(-0,0.015,0.0000001),4,14)
     # plt.plot(pts[:,0], pts[:,1], ".", label = "CBF")
@@ -33,22 +34,14 @@ if __name__ == '__main__':
     # plt.draw()
     # plt.figure()
 
-    # Polyparameter = json.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/CBF1.json","r")) # trained with 500 samples
-    Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
-    HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), Polyparameter["c"]
-
-    print("HA_CBF[4][4]",HA_CBF[4][4])
-    print("HA_CBF[14][14] :",HA_CBF[14][14])
-    print("HA_CBF[4][14] :",HA_CBF[4][14])
-    print("Hb_CBF[4] :",Hb_CBF[4])
-    print("Hb_CBF[14] :",Hb_CBF[14])
-    print("Hc_CBF :",Hc_CBF)
+    CBFs =loadCBFsJson("./data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF1.json") # trained with 500 samples
+    # Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
     
 
 
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/samples0.json","rb"))
+    samples = pkl.load(open("./data/learncbf/redLegQ1_2020-05-19-09_12_04/samples0.pkl","rb"))
     Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
     Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
 
@@ -56,12 +49,13 @@ if __name__ == '__main__':
     x0 = np.mean(np.array(list(Xp)), axis = 0)
     x0[[4,14]] = 0
     x0 = x0.reshape(-1)
-    print("x0 :",x0)
-    print("x0.T@HA_CBF@x0 :",x0.T@HA_CBF@x0)
-    
-    pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF, np.arange(-50,50,0.01),4,14, x0 = x0)
-    plt.plot(pts[:,0], pts[:,1], ".", label = "New CBF")
-    plt.legend()
+
+    for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs:
+        print("x0 :",x0)
+        print("x0.T@HA_CBF@x0 :",x0.T@HA_CBF@x0)
+        pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF, np.arange(-5,5,0.01),4,14, x0 = x0)
+        plt.plot(pts[:,0], pts[:,1], ".", label = "New CBF")
+        plt.legend()
 
     # plt.draw()
     # plt.figure()

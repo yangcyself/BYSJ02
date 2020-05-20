@@ -61,7 +61,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
         # return not (obj.LOG_CBF_ConsValue[0]>0) #[POLY2]
         return not (all(obj.LOG_CBF_ConsValue>-1e-6))
     ct.callbacks.append(callback_break)
-    ct.step(5)
+    ct.step(15)
     return Traj
 
 
@@ -363,6 +363,11 @@ class LearnCBFSession(LearnCBFSession_t):
         return self.SampleExceptions_
 
 if __name__ == '__main__':
-    s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), CBF_GEN_conic(10,10000,(0,1,0.1,6))] ,
-        name = "twoLegQ1")
+    s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
+                         CBF_GEN_conic(10,10000,(0,1,0.1,6)),
+                         CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
+                         CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
+                         CBF_GEN_degree1(10,(0,1,-0.01,0)), # limit on the x-velocity, should be greater than 0.05
+                         ] ,
+        name = "SafeWalk",numSample=400, Iteras = 20)
     s()
