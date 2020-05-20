@@ -104,6 +104,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
     assert FoundViolatedCBF, "No CBF is found to be violated in the last step"
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
+    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-5*int(-safeDT/GP.DT),1)]
     return x_danger,x_safe
 
 
@@ -370,7 +371,8 @@ if __name__ == '__main__':
                          CBF_GEN_conic(10,10000,(0,1,0.1,6)),
                          CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
                          CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
-                         CBF_GEN_degree1(10,(0,1,-0.01,0)), # limit on the x-velocity, should be greater than 0.05
+                         CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
+                         CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)), # limit the angle of the torso
                          ] ,
         name = "SafeWalk",numSample=400, Iteras = 20)
     s()

@@ -13,6 +13,7 @@ from util.visulization import QuadContour
 import pickle as pkl
 import json
 from learnCBF.FittingUtil import loadCBFsJson
+from util.CBF_builder import *
 
 
 ct = CBF_WALKER_CTRL()
@@ -45,10 +46,12 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 300, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 400, kd = 20)
 
 
-CBFs = loadCBFsJson("data/learncbf/twoLegQ1_2020-05-19-11_14_42/CBF5.json") # twoleg 
+# CBFs = loadCBFsJson("data/learncbf/twoLegQ1_2020-05-19-11_14_42/CBF5.json") # twoleg 
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF2.json")
+CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-02_11_34/CBF2.json")
 [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
 
@@ -78,6 +81,7 @@ CBFs = loadCBFsJson("data/learncbf/twoLegQ1_2020-05-19-11_14_42/CBF5.json") # tw
 
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,4)))
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,6)))
+# ct.addCBF(*CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)))
 
 Traj = []
 def callback_traj(obj):

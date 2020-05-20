@@ -97,7 +97,7 @@ def dumpJson(A,b,c,fileName = "data/CBF/tmp2.json"):
 
 
 def dumpCBFsJson(CBFs,fileName = "data/CBF/tmp2.json"):
-    json.dump([{"A":A.tolist(),"b":b.tolist(),"c":c} for A,b,c in CBFs], open(fileName,"w") )
+    json.dump([{"A":(A.tolist() if not (A==0).all() else 0),"b":b.tolist(),"c":c} for A,b,c in CBFs], open(fileName,"w") )
 
 
 def loadJson(fileName = "data/CBF/tmp2.json"):
@@ -106,5 +106,7 @@ def loadJson(fileName = "data/CBF/tmp2.json"):
 
 def loadCBFsJson(fileName = "data/CBF/tmp2.json"):
     Polyparameters = json.load(open(fileName,"r")) 
-    return [(np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), Polyparameter["c"]) for Polyparameter in Polyparameters]
+    CBFs =  [(np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), Polyparameter["c"]) for Polyparameter in Polyparameters]
+    CBFs = [(A,b,c) if A.ndim==2 else (np.zeros((len(b),len(b))),b,c) for A,b,c in CBFs]
+    return CBFs
 
