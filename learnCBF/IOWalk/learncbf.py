@@ -7,6 +7,7 @@ GP.GUIVIS = False
 GP.CATCH_KEYBOARD_INTERRPUT = False
 from scipy.linalg import sqrtm,expm
 from scipy.optimize import minimize
+import cvxpy as cp
 from learnCBF.IOWalk.IOWalkUtil import *
 from learnCBF.FittingUtil import sqeuclidean, dumpCBFsJson, loadCBFsJson
 from learnCBF.FittingUtil import kernel_Poly1 as kernel
@@ -45,13 +46,12 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     """
     from ctrl.CBFWalker import CBF_WALKER_CTRL, CTRL
     CTRL.restart()
-    # assert(len(CBFs)==1) #[POLY2]
 
     ct = CBF_WALKER_CTRL()
     reset(ct)
     Balpha = Balpha + BalphaStd*(0.5-np.random.random(size = Balpha.shape))
     Kp = 200 + 400*np.random.rand()
-    Kd = np.log(Kp)*np.random.rand()*4
+    Kd = 10+np.log(Kp)*np.random.rand()*2
     CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
     CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
     CBF_WALKER_CTRL.CBF_CLF_QP.reg(ct,mc_b = mc)
@@ -63,7 +63,6 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
         Traj.append((obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP, (obj.DHA, obj.DHB, obj.DHg), obj.LOG_CBF_ConsValue))
     ct.callbacks.append(callback_traj)
     def callback_break(obj):
-        # return not (obj.LOG_CBF_ConsValue[0]>0) #[POLY2]
         return not (all(obj.LOG_CBF_ConsValue>-1e-6))
     ct.callbacks.append(callback_break)
     ct.step(15)
@@ -74,38 +73,52 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
     """
     get safe points and danger points given a trajectory.
         The safe points are the points before `safeDT` of the termination
-        The danger points are the points got by re
+        The danger points are the points from the opt problem (QP)
+            min_{u,x} || x - x_0 ||
+            s.t. x^+ = DA x + DB u + Dg
+                 B(x^+) >= 0        \\forall B (locally linearlized)
+                 mc*B(x^+) + dB(x^+,u) >=0  \\forall B (locally linearlized)
+            The solution x* has to be within a certain limit from x_0, 
+            otherwise it means all points near by are bad points.
     """
-    # assert(len(CBFs)==1) #[POLY2]
 
     # the danger points
     DcA,DcB,Dcg = traj[-1][4] # the Continues dynamics of the terminal point
     tt,ts,tx,tu,tDc,tConsV = traj[-1] # the time, state, augmented state, inputu, CBFConsValue of the terminal state
-    if(tt<1.6*safeDT):
+    if(tt<min(2,10*safeDT)):
+        print("traj too short, tt: %f < %f"%(tt,min(2,10*safeDT)))
         return [],[]
     # Note, the `-DT` means that the time goes backward
     Dcg = Dcg.reshape(-1,1)
-    sysdt = expm(np.concatenate([ - dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
-    DA,DB,Dg = sysdt[:DcA.shape[0],:DcA.shape[1]], sysdt[:DcA.shape[0],DcA.shape[1]:-1], sysdt[:DcA.shape[0],-1:] # The dynamics with the time goes backwards
-    sysdtf = expm(np.concatenate([ dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
-    DAf,DBf,Dgf = sysdtf[:DcA.shape[0],:DcA.shape[1]], sysdtf[:DcA.shape[0],DcA.shape[1]:-1], sysdtf[:DcA.shape[0],-1:] # The dynamics with the time goes forwards
+    sysdt = expm(np.concatenate([ dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
+    DA,DB,Dg = sysdt[:DcA.shape[0],:DcA.shape[1]], sysdt[:DcA.shape[0],DcA.shape[1]:-1], sysdt[:DcA.shape[0],-1:] # The dynamics with the time goes forwards
     Dg = Dg.reshape(-1)
     Dcg = Dcg.reshape(-1)
     # find the `u` that maximizes the DB (in continues dynamics)
+
+    cpu = cp.Variable(shape=len(GP.MAXTORQUE))
+    cpx = cp.Variable(shape=DcA.shape[0])
+    cpx_plus = DA @ cpx + DB @ cpu + Dg
+    cpBs = [tx .T @ HA @ (2*cpx_plus - tx) + Hb.T @ cpx_plus  + Hc for HA,Hb,Hc in CBFs] # B(x_plus), linearlized the quad term
+    cpobj = cp.Minimize(cp.norm(cpx - tx)**2 )
+    cpcons = (
+            [ cpB >=0 for cpB in cpBs]
+            + [ (mc * cpB + (2*tx.T @ HA + Hb.T) @ (DcA @ cpx_plus + DcB @ cpu + Dcg)) >= 0  # mc*B(x^+) + dB(x^+,u) >=0
+                for cpB,(HA,Hb,Hc) in zip(cpBs,CBFs)]
+            + [cpu <= GP.MAXTORQUE] + [cpu >= -GP.MAXTORQUE]
+            )
+        
+    prob = cp.Problem(cpobj, cpcons)
+    prob.solve(verbose=False)
+    assert(prob.status=="optimal")
+    x_danger_star = cpx.value
+    u_danger_star = cpu.value
     FoundViolatedCBF = False
-    for i,CBF in enumerate(CBFs):
-        HA,Hb,Hc = CBF
-        # u = GP.MAXTORQUE * np.sign(((2*tx .T @ HA + Hb.T)@DBf).T)
-        u = GP.MAXTORQUE * np.sign(((2*tx .T @ HA + Hb.T)@DcB).T)
-        if(mc * (tx.T @ HA @ tx + Hb.T @ tx + Hc) + (2*tx .T @ HA + Hb.T)@(DcA @ tx + DcB @ u + Dcg) < 0): # even the best u cannot make the CBF cons greater than 0
-            FoundViolatedCBF = True
-            assert tConsV[i]<0, "The CBF cons is not violated but the best u cannot save it"
-            x_danger = [(DA @ tx + DB @ uu + Dg,uu,(DAf,DBf,Dgf))  for uu in [u, 1.5*u]] # 2*u means goes back with larger torque also means cannot be saved by u
-            x_danger.append((tx, tu, tDc))
-    assert FoundViolatedCBF, "No CBF is found to be violated in the last step"
+    x_danger=[(tx, tu, tDc),(x_danger_star,u_danger_star,(DA,DB,Dg))]
+    
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
-    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-10*int(-safeDT/GP.DT),10)]
+    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),10)]
 
     if(SYMMETRY_AUGMENT):
         x_safe_aug = []
@@ -170,7 +183,6 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
         s.t.    y_i(x_i^T w + b) > 1 //SVM condition
                 y_i(dB(x_i,u_i)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
     """
-    # assert(len(CBFs)==1) #[POLY2]
 
     # try: #DEBUGGING CLOUSE
         # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
@@ -240,24 +252,6 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
                 ).reshape((1,-1))
                 for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)],axis=0)
 
-    # def PSDCons(w): # [POLY2]
-    #     """
-    #     The negative weight matrix should be positive definite
-    #     """
-    #     A,b,c = kernel.GetParam(w[:lenw])
-    #     return np.array([np.linalg.det(-A[:i,:i]) for i in range(dim)])
-
-
-    # def containCons(w): # [POLY2]
-    #     """
-    #     The constraint that the new CBF should be contained by the old CBF
-    #         This constraint is enforced by letting all points on the axis be inside of the old CBF
-    #     """
-    #     A,b,c = kernel.GetParam(w[:lenw])
-    #     points,E,_c = representEclips(A,b,c)
-    #     return np.array([p.T@HA@p + Hb.T@p + Hc for p in points]+list(E)+[_c])
-
-
     # # TODO
     # def symmetricCons(w):
     #     return
@@ -265,7 +259,6 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     options = {"maxiter" : 500, "disp"    : True,  "verbose":1, 'iprint':2} # 'iprint':2,
     lenx0 = lenw + len(y) + lenfu
     x0 = np.random.random(lenx0) *0
-    # set the init value to be an eclipse around the mean of feasible points [POLY2]
     # x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
     # pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
     # pos_x_mean[0] = 0
@@ -277,11 +270,8 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
 
     constraints = [{'type':'ineq','fun':SVMcons, "jac":SVMjac},
                    {'type':'ineq','fun':feasibleCons, "jac":feasibleJac}]
-                #    {'type':'ineq','fun':containCons}, # TODO decide whether to comment out this line # [POLY2]
-                #    {'type':'ineq','fun':PSDCons}]
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
-    # bounds[:dim,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY2]
     bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY1]
     bounds[lenw:-lenfu,0] = 0 # set c > 0
     bounds[lenw:-lenfu,1] = np.inf
