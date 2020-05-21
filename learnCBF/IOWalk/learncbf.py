@@ -20,6 +20,7 @@ from glob import glob
 import dill as pkl
 import json
 
+SYMMETRY_AUGMENT = True
 
 def representEclips(A,b,c):
     """
@@ -104,7 +105,33 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
     assert FoundViolatedCBF, "No CBF is found to be violated in the last step"
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
-    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-5*int(-safeDT/GP.DT),1)]
+    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-10*int(-safeDT/GP.DT),10)]
+
+    if(SYMMETRY_AUGMENT):
+        x_safe_aug = []
+        for x,u,(DAf,DBf,Dgf) in x_safe:
+            x,u,(DAf,DBf,Dgf) = x.copy(),u.copy(),(DAf.copy(),DBf.copy(),Dgf.copy())
+            x[[3,4,5,6, 13,14,15,16]] = x[[5,6,3,4, 15,16,13,14]]
+            u[[3,4,5,6]] = u[[5,6,3,4]]
+            DAf[[3,4,5,6, 13,14,15,16],:] = DAf[[5,6,3,4, 15,16,13,14],:]
+            DAf[:,[3,4,5,6, 13,14,15,16]] = DAf[:,[5,6,3,4, 15,16,13,14]]
+            DBf[[3,4,5,6, 13,14,15,16],:] = DBf[[5,6,3,4, 15,16,13,14],:]
+            DBf[:,[3,4,5,6]] = DBf[:,[5,6,3,4]]
+            Dgf[[3,4,5,6, 13,14,15,16]] = Dgf[[5,6,3,4, 15,16,13,14]]
+            x_safe_aug.append((x,u,(DAf,DBf,Dgf)))
+        x_safe += x_safe_aug
+        x_danger_aug = []
+        for x,u,(DAf,DBf,Dgf) in x_danger:
+            x,u,(DAf,DBf,Dgf) = x.copy(),u.copy(),(DAf.copy(),DBf.copy(),Dgf.copy())
+            x[[3,4,5,6, 13,14,15,16]] = x[[5,6,3,4, 15,16,13,14]]
+            u[[3,4,5,6]] = u[[5,6,3,4]]
+            DAf[[3,4,5,6, 13,14,15,16],:] = DAf[[5,6,3,4, 15,16,13,14],:]
+            DAf[:,[3,4,5,6, 13,14,15,16]] = DAf[:,[5,6,3,4, 15,16,13,14]]
+            DBf[[3,4,5,6, 13,14,15,16],:] = DBf[[5,6,3,4, 15,16,13,14],:]
+            DBf[:,[3,4,5,6]] = DBf[:,[5,6,3,4]]
+            Dgf[[3,4,5,6, 13,14,15,16]] = Dgf[[5,6,3,4, 15,16,13,14]]
+            x_danger_aug.append((x,u,(DAf,DBf,Dgf)))
+        x_danger += x_danger_aug
     return x_danger,x_safe
 
 
@@ -351,7 +378,14 @@ class LearnCBFSession(LearnCBFSession_t):
                     pkl.dump(samples,open(sampleFile,"wb"))
 
                     currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
-                    dumpCBFsJson(CBFs + [(A,b,c)],currentCBFFile)            
+                    addedCBF = [(A,b,c)]
+                    if SYMMETRY_AUGMENT:
+                        A,b,c = A.copy(),b.copy(),c.copy(),
+                        A[[3,4,5,6, 13,14,15,16],:] =  A[[5,6,3,4, 15,16,13,14],:]
+                        A[:,[3,4,5,6, 13,14,15,16]] =  A[:,[5,6,3,4, 15,16,13,14]]
+                        b[[3,4,5,6, 13,14,15,16]] = b[[5,6,3,4, 15,16,13,14]]
+                        addedCBF.append((A,b,c))
+                    dumpCBFsJson(CBFs + addedCBF,currentCBFFile)            
                     self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
                     self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
 
@@ -374,5 +408,5 @@ if __name__ == '__main__':
                          CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
                          CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)), # limit the angle of the torso
                          ] ,
-        name = "SafeWalk",numSample=400, Iteras = 20)
+        name = "SafeWalk",numSample=300, Iteras = 20, dangerDT=0.005, safeDT=0.1)
     s()

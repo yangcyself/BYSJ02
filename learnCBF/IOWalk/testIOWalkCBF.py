@@ -46,12 +46,15 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 400, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 300, kd = 20)
 
 
 # CBFs = loadCBFsJson("data/learncbf/twoLegQ1_2020-05-19-11_14_42/CBF5.json") # twoleg 
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF2.json")
-CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-02_11_34/CBF2.json")
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-02_11_34/CBF6.json") # 大概在0-9是会因为能量耗尽而失败，之后是因为无法落下蓝腿而失败
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-07_35_56/CBF2.json") # 也是出现不往下迈腿的情况
+CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF6.json")
+
 [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
 
