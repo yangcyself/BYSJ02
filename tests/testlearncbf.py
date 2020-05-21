@@ -2,6 +2,7 @@ import sys
 sys.path.append(".")
 from learnCBF.IOWalk.learncbf import *
 
+
 if __name__ == '__main__':
     
     ### Hand craft test data
@@ -14,7 +15,14 @@ if __name__ == '__main__':
     # samples = [([(x,np.zeros(7),(None,None,None)) for x in Xn],[(x,np.zeros(7),(None,None,None)) for x in Xp])]
     # pkl.dump(samples, open("./data/learncbf/Handtmp.pkl","wb"))
 
-    # CTRL.restart()
+    import learnCBF.IOWalk.learncbf
+    learnCBF.IOWalk.learncbf.SYMMETRY_AUGMENT = False
+    s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
+                         ] ,
+        name = "debug",numSample=20, Iteras = 2, dangerDT=0.01, safeDT=0.1,
+        class_weight={1:0.9, -1:0.1})
+    s()
+    
     # A,b,c,_,samples = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
     #                 dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
     #                 numSample = 20, dangerDT=0.01, safeDT = 0.5)
@@ -34,14 +42,15 @@ if __name__ == '__main__':
     # plt.draw()
     # plt.figure()
 
-    CBFs =loadCBFsJson("./data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF1.json") # trained with 500 samples
+    # CBFs =loadCBFsJson("./data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF1.json") # trained with 500 samples
+    CBFs = loadCBFsJson("./data/learncbf/debug_2020-05-21-16_51_32/CBF1.json")
     # Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
     
 
 
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/redLegQ1_2020-05-19-09_12_04/samples0.pkl","rb"))
+    samples = pkl.load(open("data/learncbf/debug_2020-05-21-16_51_32/samples0.pkl","rb"))
     Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
     Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
 

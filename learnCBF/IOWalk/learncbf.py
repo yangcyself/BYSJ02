@@ -199,7 +199,7 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     y = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
     u_list = [u for danger_s, safe_s in samples for x,u,DB in safe_s]
     DB_list =[DB for danger_s, safe_s in samples for x,u,DB in safe_s]
-
+    gamma_list = np.array([gamma] * len(y) if class_weight is None else [gamma * class_weight[yi] for yi in y])
     ## Solve the SVM optimization
     class_weight = {-1:1, 1:1} if class_weight is None else class_weight
     
@@ -220,13 +220,13 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
 
     def obj(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        return gamma0*sqeuclidean(w[:-1]) + gamma * np.sum(c) + gamma2 * sqeuclidean(u_ - uvec)
+        return gamma0*sqeuclidean(w[:-1]) + gamma_list * np.sum(c) + gamma2 * sqeuclidean(u_ - uvec)
 
     def grad(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         ans = gamma0*2*w
         ans[-1] = 0
-        ans = np.array(list(ans)+list([gamma]*len(c)) +list(2*gamma2*(u_ - uvec)))
+        ans = np.array(list(ans)+list(gamma_list) +list(2*gamma2*(u_ - uvec)))
         return ans.reshape((-1)) # shape (-1) rather than (1,-1) is necessary for trust-constr
 
     def SVMcons(w):
@@ -398,5 +398,6 @@ if __name__ == '__main__':
                          CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
                          CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)), # limit the angle of the torso
                          ] ,
-        name = "SafeWalk",numSample=300, Iteras = 20, dangerDT=0.005, safeDT=0.1)
+        name = "SafeWalk2",numSample=300, Iteras = 20, dangerDT=0.01, safeDT=0.1,
+        class_weight={1:0.9, -1:0.1})
     s()
