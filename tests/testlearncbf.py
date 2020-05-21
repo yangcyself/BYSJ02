@@ -20,8 +20,9 @@ if __name__ == '__main__':
     s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
                          ] ,
         name = "debug",numSample=20, Iteras = 2, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:0.9, -1:0.1})
+        class_weight={1:1, -1:1})
     s()
+    exit()
     
     # A,b,c,_,samples = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
     #                 dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
@@ -43,14 +44,14 @@ if __name__ == '__main__':
     # plt.figure()
 
     # CBFs =loadCBFsJson("./data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF1.json") # trained with 500 samples
-    CBFs = loadCBFsJson("./data/learncbf/debug_2020-05-21-16_51_32/CBF1.json")
+    CBFs = loadCBFsJson("data/learncbf/debug_2020-05-22-00_04_13/CBF1.json")
     # Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
     
 
 
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("data/learncbf/debug_2020-05-21-16_51_32/samples0.pkl","rb"))
+    samples = pkl.load(open("data/learncbf/debug_2020-05-22-00_04_13/samples0.pkl","rb"))
     Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
     Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
 

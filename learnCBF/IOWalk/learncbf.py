@@ -21,7 +21,7 @@ from glob import glob
 import dill as pkl
 import json
 
-SYMMETRY_AUGMENT = True
+SYMMETRY_AUGMENT = False
 
 def representEclips(A,b,c):
     """
@@ -69,7 +69,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     return Traj
 
 
-def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
+def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
     """
     get safe points and danger points given a trajectory.
         The safe points are the points before `safeDT` of the termination
@@ -80,6 +80,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
                  mc*B(x^+) + dB(x^+,u) >=0  \\forall B (locally linearlized)
             The solution x* has to be within a certain limit from x_0, 
             otherwise it means all points near by are bad points.
+    args lin_eps: the epsilon to bound the area of linearlization, used to limit x_danger+
     """
 
     # the danger points
@@ -92,30 +93,57 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
     Dcg = Dcg.reshape(-1,1)
     sysdt = expm(np.concatenate([ dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
     DA,DB,Dg = sysdt[:DcA.shape[0],:DcA.shape[1]], sysdt[:DcA.shape[0],DcA.shape[1]:-1], sysdt[:DcA.shape[0],-1:] # The dynamics with the time goes forwards
+    sysdt_half = expm(np.concatenate([ dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
+    DA_half,DB_half,Dg_half = sysdt_half[:DcA.shape[0],:DcA.shape[1]], sysdt_half[:DcA.shape[0],DcA.shape[1]:-1], sysdt_half[:DcA.shape[0],-1:] # The dynamics with the time goes forwards
+    sysdt_back = expm(np.concatenate([ - dangerDT * np.concatenate([DcA, DcB, Dcg],axis = 1),np.zeros((DcB.shape[1]+1, DcA.shape[1] + DcB.shape[1] + 1))], axis = 0))
+    DA_back,DB_back,Dg_back = sysdt_back[:DcA.shape[0],:DcA.shape[1]], sysdt_back[:DcA.shape[0],DcA.shape[1]:-1], sysdt_back[:DcA.shape[0],-1:] # The dynamics with the time goes forwards
+    Dg_back = Dg_back.reshape(-1)
+    Dg_half = Dg_half.reshape(-1)
     Dg = Dg.reshape(-1)
     Dcg = Dcg.reshape(-1)
-    # find the `u` that maximizes the DB (in continues dynamics)
-
-    cpu = cp.Variable(shape=len(GP.MAXTORQUE))
-    cpx = cp.Variable(shape=DcA.shape[0])
-    cpx_plus = DA @ cpx + DB @ cpu + Dg
-    cpBs = [tx .T @ HA @ (2*cpx_plus - tx) + Hb.T @ cpx_plus  + Hc for HA,Hb,Hc in CBFs] # B(x_plus), linearlized the quad term
-    cpobj = cp.Minimize(cp.norm(cpx - tx)**2 )
-    cpcons = (
-            [ cpB >=0 for cpB in cpBs]
-            + [ (mc * cpB + (2*tx.T @ HA + Hb.T) @ (DcA @ cpx_plus + DcB @ cpu + Dcg)) >= 0  # mc*B(x^+) + dB(x^+,u) >=0
-                for cpB,(HA,Hb,Hc) in zip(cpBs,CBFs)]
-            + [cpu <= GP.MAXTORQUE] + [cpu >= -GP.MAXTORQUE]
-            )
-        
-    prob = cp.Problem(cpobj, cpcons)
-    prob.solve(verbose=False)
-    assert(prob.status=="optimal")
-    x_danger_star = cpx.value
-    u_danger_star = cpu.value
-    FoundViolatedCBF = False
-    x_danger=[(tx, tu, tDc),(x_danger_star,u_danger_star,(DA,DB,Dg))]
     
+    x_danger = [(tx, tu, tDc)]
+    u_danger_backs = []
+    for a in np.arange(0,20,4):
+        cpu = cp.Variable(shape=len(GP.MAXTORQUE))
+        cpx = cp.Variable(shape=DcA.shape[0])
+        cpx_plus = DA @ cpx + DB @ cpu + Dg
+        cpx_half = DA_half @ cpx + DB_half @ cpu + Dg_half
+        cpBs = [tx .T @ HA @ (2*cpx_plus - tx) + Hb.T @ cpx_plus  + Hc for HA,Hb,Hc in CBFs] # B(x_plus), linearlized the quad term
+        cpBs_half = [tx .T @ HA @ (2*cpx_half - tx) + Hb.T @ cpx_half  + Hc for HA,Hb,Hc in CBFs] # B(x_plus), linearlized the quad term
+        a = 2**a
+        cpa = np.diag([a]*(DcA.shape[0]//2)+[1]*(DcA.shape[0]//2))
+        cpobj = cp.Minimize(cp.norm(cpa @ (cpx - tx))**2)
+        cpcons = (   
+                [tx.T @ HA @ (2*cpx - tx) + Hb.T @ cpx  + Hc >=0 for HA,Hb,Hc in CBFs]
+                + [ cpB >=0 for cpB in cpBs]
+                + [ cpB >=0 for cpB in cpBs_half]
+                + [ (mc * cpB + (2*tx.T @ HA + Hb.T) @ (DcA @ cpx_plus + DcB @ cpu + Dcg)) >= 0  # mc*B(x^+) + dB(x^+,u) >=0
+                    for cpB,(HA,Hb,Hc) in zip(cpBs,CBFs)]
+                + [ (mc * cpB + (2*tx.T @ HA + Hb.T) @ (DcA @ cpx_half + DcB @ cpu + Dcg)) >= 0  # mc*B(x^+) + dB(x^+,u) >=0
+                    for cpB,(HA,Hb,Hc) in zip(cpBs_half,CBFs)]
+                + [cpu <= GP.MAXTORQUE] + [cpu >= -GP.MAXTORQUE]
+                )
+            
+        prob = cp.Problem(cpobj, cpcons)
+        prob.solve(verbose=False)
+        assert(prob.status=="optimal")
+        x_danger_star = cpx.value
+        u_danger_star = cpu.value
+        FoundViolatedCBF = False
+        if(np.linalg.norm(tx - x_danger_star)>lin_eps):
+            continue
+        u_danger_backs.append(u_danger_star)
+        if(np.linalg.norm(tx - x_danger_star)<1e-3):
+            break   
+        x_danger.append((x_danger_star,u_danger_star,(DA,DB,Dg)))
+    if(len(u_danger_backs)):
+        u_danger_back = np.mean(u_danger_backs,axis=0).reshape(-1)
+        x_danger_back = DA_back @ tx + DB_back @ u_danger_back + Dg_back 
+        if(np.linalg.norm(tx - x_danger_back)>lin_eps):
+            x_danger_back = tx + lin_eps * (x_danger_back-tx)/np.linalg.norm(tx - x_danger_back)
+        x_danger.append(( x_danger_back, u_danger_back,(DA,DB,Dg)))
+        
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
     x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),10)]
@@ -149,11 +177,11 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT):
 
 
 def getAsample(inputarg):
-    if(len(inputarg)==4): inputarg.append(None) # ExceptionHandel
-    CBF,dangerDT,safeDT,mc, ExceptionHandel = inputarg
+    if(len(inputarg)==5): inputarg.append(None) # ExceptionHandel
+    CBF,dangerDT,safeDT,mc,lin_eps, ExceptionHandel = inputarg
     traj = sampler(CBF, mc, BalphaStd = 0.03)
     try:
-        x_danger,x_safe = GetPoints(traj,CBF, mc,dangerDT,safeDT)
+        x_danger,x_safe = GetPoints(traj,CBF, mc,dangerDT,safeDT,lin_eps)
     except AssertionError as ex:
         if(ExceptionHandel) is not None:
             ExceptionHandel(traj,ex)
@@ -164,7 +192,7 @@ def getAsample(inputarg):
     return x_danger,x_safe
 
 
-def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, class_weight= None, 
+def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, lin_eps, class_weight= None, 
                 pool = None, sampleExceptionHander = None):
     """
     One iteration of the learnCBF: input a CBF, calls sampler and GetPints, and return a CBF
@@ -190,10 +218,10 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
         # print("loaded %s from %s"%("samples", "./data/learncbf/tmp.pkl"))
     # except FileNotFoundError as ex:
     if pool is None:
-        samples = [getAsample((CBFs, dangerDT,safeDT, mc, sampleExceptionHander)) for i in range(numSample)]
+        samples = [getAsample((CBFs, dangerDT,safeDT, mc, lin_eps, sampleExceptionHander)) for i in range(numSample)]
     else:
-        samples = pool.map(getAsample, [(CBFs,dangerDT,safeDT,mc, sampleExceptionHander)]*numSample)
-    #     pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
+        samples = pool.map(getAsample, [(CBFs,dangerDT,safeDT,mc, lin_eps, sampleExceptionHander)]*numSample)
+    pkl.dump(samples,open("./data/learncbf/tmp.pkl","wb"))
 
     X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
     y = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
@@ -220,7 +248,7 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
 
     def obj(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        return gamma0*sqeuclidean(w[:-1]) + gamma_list * np.sum(c) + gamma2 * sqeuclidean(u_ - uvec)
+        return gamma0*sqeuclidean(w[:-1]) +  np.sum(gamma_list * c) + gamma2 * sqeuclidean(u_ - uvec)
 
     def grad(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
@@ -310,11 +338,11 @@ class LearnCBFSession_t(Session):
 
 class LearnCBFSession(LearnCBFSession_t):
     def __init__(self, CBFs0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
-                    numSample = 200, dangerDT=0.01, safeDT=0.5, ProcessNum = None):
+                    numSample = 200, dangerDT=0.01, safeDT=0.5, lin_eps = 0.2, ProcessNum = None):
         ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
         # ProcessNum = None # IMPORTANT!!! The Behavior of Pybullet in multiprocess has not been tested
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
-                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, ProcessNum = ProcessNum)
+                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, lin_eps = lin_eps, ProcessNum = ProcessNum)
 
         self.Iteras = Iteras
         self.mc = mc
@@ -326,6 +354,7 @@ class LearnCBFSession(LearnCBFSession_t):
         self.dangerDT = dangerDT
         self.safeDT = safeDT
         self.CBFs0 = CBFs0
+        self.lin_eps = lin_eps
         self.ProcessNum = ProcessNum
     
         self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)
@@ -361,7 +390,7 @@ class LearnCBFSession(LearnCBFSession_t):
                                                 "inputCBFFile": currentCBFFile})
                     # read from the current CBF file to avoid mistake
                     CBFs = loadCBFsJson(currentCBFFile)
-                    A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, pool = pool, sampleExceptionHander=self.sampleExceptionHander)
+                    A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, sampleExceptionHander=self.sampleExceptionHander)
                     self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
                     sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
                     self.IterationInfo_[-1]["sampleFile"] = sampleFile
@@ -398,6 +427,6 @@ if __name__ == '__main__':
                          CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
                          CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)), # limit the angle of the torso
                          ] ,
-        name = "SafeWalk2",numSample=300, Iteras = 20, dangerDT=0.01, safeDT=0.1,
+        name = "SafeWalk2",numSample=200, Iteras = 20, dangerDT=0.01, safeDT=0.1,
         class_weight={1:0.9, -1:0.1})
     s()
