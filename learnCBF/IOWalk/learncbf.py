@@ -339,7 +339,7 @@ class LearnCBFSession_t(Session):
 class LearnCBFSession(LearnCBFSession_t):
     def __init__(self, CBFs0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
                     numSample = 200, dangerDT=0.01, safeDT=0.5, lin_eps = 0.2, ProcessNum = None):
-        ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum
+        ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else None if ProcessNum <=1 else ProcessNum 
         # ProcessNum = None # IMPORTANT!!! The Behavior of Pybullet in multiprocess has not been tested
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
                     numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, lin_eps = lin_eps, ProcessNum = ProcessNum)
@@ -428,5 +428,5 @@ if __name__ == '__main__':
                          CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)), # limit the angle of the torso
                          ] ,
         name = "SafeWalk2",numSample=200, Iteras = 20, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:0.9, -1:0.1})
+        class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()
