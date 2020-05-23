@@ -448,6 +448,6 @@ if __name__ == '__main__':
                          CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)),
                          CBF_GEN_conic(10,10000,(0,1,-0.017,2)) # limit the angle of the torso
                          ] ,
-        name = "SafeWalk2",numSample=100, Iteras = 20, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:0.9, -1:0.1}, ProcessNum=None)
+        name = "SafeWalk2",numSample=200, Iteras = 20, dangerDT=0.01, safeDT=0.1,
+        class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()
