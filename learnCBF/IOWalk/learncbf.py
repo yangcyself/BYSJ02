@@ -151,7 +151,7 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
     x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),2)]
     global AddedFirstState
     if(not AddedFirstState):
-        x_safe.append(traj[0][2],traj[0][3],traj[0][4])
+        x_safe.append((traj[0][2],traj[0][3],traj[0][4]))
         AddedFirstState = True
 
     if(SYMMETRY_AUGMENT):
