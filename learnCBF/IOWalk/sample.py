@@ -7,6 +7,7 @@ from ctrl.CBFWalker import *
 import matplotlib.pyplot as plt
 from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
+from util.CBF_builder import *
 import dill as pkl
 from glob import glob
 import json
