@@ -69,7 +69,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     samplerCallback(locals())
     return Traj
 
-
+AddedFirstState = False
 def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
     """
     get safe points and danger points given a trajectory.
@@ -149,6 +149,10 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
     x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),2)]
+    global AddedFirstState
+    if(not AddedFirstState):
+        x_safe.append(traj[0][2],traj[0][3],traj[0][4])
+        AddedFirstState = True
 
     if(SYMMETRY_AUGMENT):
         x_safe_aug = []
