@@ -15,14 +15,14 @@ if __name__ == '__main__':
     # samples = [([(x,np.zeros(7),(None,None,None)) for x in Xn],[(x,np.zeros(7),(None,None,None)) for x in Xp])]
     # pkl.dump(samples, open("./data/learncbf/Handtmp.pkl","wb"))
 
-    import learnCBF.IOWalk.learncbf
-    learnCBF.IOWalk.learncbf.SYMMETRY_AUGMENT = False
-    s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
-                         ] ,
-        name = "debug",numSample=20, Iteras = 2, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:1, -1:1})
-    s()
-    exit()
+    # import learnCBF.IOWalk.learncbf
+    # learnCBF.IOWalk.learncbf.SYMMETRY_AUGMENT = False
+    # s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
+    #                      ] ,
+    #     name = "debug",numSample=20, Iteras = 2, dangerDT=0.01, safeDT=0.1,
+    #     class_weight={1:1, -1:1})
+    # s()
+    # exit()
     
     # A,b,c,_,samples = learnCBFIter(CBF_GEN_conic(10,100000,(0,1,0.1,4)),[], 
     #                 dim=20, mc = 0.01, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None,
@@ -44,14 +44,16 @@ if __name__ == '__main__':
     # plt.figure()
 
     # CBFs =loadCBFsJson("./data/learncbf/redLegQ1_2020-05-19-09_12_04/CBF1.json") # trained with 500 samples
-    CBFs = loadCBFsJson("data/learncbf/debug_2020-05-22-00_04_13/CBF1.json")
+    CBFs = loadCBFsJson("data/learncbf/debug_2020-05-23-10_49_06/CBF2.json")
+    # CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-00_10_03/CBF1.json")
     # Polyparameter = json.load(open("data/CBF/LegAngletmp.json","r")) # trained with 500 samples
     
 
 
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
     # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("data/learncbf/debug_2020-05-22-00_04_13/samples0.pkl","rb"))
+    # samples = pkl.load(open("data/learncbf/debug_2020-05-23-10_49_06/samples0.pkl","rb"))
+    samples = pkl.load(open("data/learncbf/debug_2020-05-23-10_49_06/samples0.pkl","rb"))
     Xp = np.array([x for danger_s, safe_s in samples for x,u,DB in safe_s])
     Xn = np.array([x for danger_s, safe_s in samples for x,u,DB in danger_s])
 
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs:
         print("x0 :",x0)
         print("x0.T@HA_CBF@x0 :",x0.T@HA_CBF@x0)
-        pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF, np.arange(-5,5,0.01),4,14, x0 = x0)
+        pts = QuadContour(HA_CBF,Hb_CBF,Hc_CBF, np.arange(-1,1,0.01),4,14, x0 = x0)
         plt.plot(pts[:,0], pts[:,1], ".", label = "New CBF")
         plt.legend()
 
@@ -73,25 +75,7 @@ if __name__ == '__main__':
     plt.plot(Xp[:,4],Xp[:,14],".",c = "g",label = "safe points")
     plt.plot(Xn[:,4],Xn[:,14],".",c = "r",label = "danger points")
     plt.legend()
-    # plt.ylim((-50,50))
+    plt.ylim((-100,100))
     plt.draw()
 
-    plt.figure()
-    # samples = pkl.load(open("./data/learncbf/tmp.pkl","rb"))
-    samples = pkl.load(open("./data/learncbf/redLegQ2_2020-05-14-15_16_18/samples0.json","rb"))
-    X = [x for danger_s, safe_s in samples for x,u,DB in danger_s+safe_s]
-    y_list = [i for danger_s, safe_s in samples for i in ([-1]*len(danger_s)+[1]*len(safe_s))]
-    # print("X :",X)
-    # print("y_list :",y_list)
-    
-    
-    Xp = np.array([x for x,y in zip(X,y_list) if y==1])
-    Xn = np.array([x for x,y in zip(X,y_list) if y==-1])
-    plt.plot(Xp[:,4],Xp[:,14],".",c = "g",label = "safe points")
-    plt.plot(Xn[:,4],Xn[:,14],".",c = "r",label = "danger points")
-    plt.legend()
-    # plt.ylim((-50,50))
-    plt.draw()
-
-    
     plt.show()

@@ -53,7 +53,9 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = 300, kd = 20)
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF2.json")
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-02_11_34/CBF6.json") # 大概在0-9是会因为能量耗尽而失败，之后是因为无法落下蓝腿而失败
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-07_35_56/CBF2.json") # 也是出现不往下迈腿的情况
-CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF6.json")
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF6.json")
+CBFs = loadCBFsJson("data/learncbf/debug_2020-05-23-10_49_06/CBF2.json")
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-00_10_03/CBF4.json") # CBF4开始就出现了不往下放脚的情况
 
 [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 

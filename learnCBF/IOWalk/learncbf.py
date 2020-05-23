@@ -127,7 +127,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
             
         prob = cp.Problem(cpobj, cpcons)
         prob.solve(verbose=False)
-        assert(prob.status=="optimal")
+        assert prob.status=="optimal" , "The problem didnot solved optimaly"
         x_danger_star = cpx.value
         u_danger_star = cpu.value
         FoundViolatedCBF = False
@@ -146,7 +146,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
         
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
-    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),10)]
+    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),5)]
 
     if(SYMMETRY_AUGMENT):
         x_safe_aug = []
@@ -182,7 +182,7 @@ def getAsample(inputarg):
     traj = sampler(CBF, mc, BalphaStd = 0.03)
     try:
         x_danger,x_safe = GetPoints(traj,CBF, mc,dangerDT,safeDT,lin_eps)
-    except AssertionError as ex:
+    except Exception as ex:
         if(ExceptionHandel) is not None:
             ExceptionHandel(traj,ex)
             print("Record Exception:", str(ex))
