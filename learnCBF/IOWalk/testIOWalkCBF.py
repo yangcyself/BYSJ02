@@ -46,26 +46,16 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 300, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 320, kd = 20)
 
 
-# CBFs = loadCBFsJson("data/learncbf/twoLegQ1_2020-05-19-11_14_42/CBF5.json") # twoleg 
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF2.json")
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-02_11_34/CBF6.json") # 大概在0-9是会因为能量耗尽而失败，之后是因为无法落下蓝腿而失败
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-07_35_56/CBF2.json") # 也是出现不往下迈腿的情况
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk_2020-05-20-04_24_24/CBF6.json")
-CBFs = loadCBFsJson("data/learncbf/debug_2020-05-23-10_49_06/CBF2.json")
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-00_10_03/CBF4.json") # CBF4开始就出现了不往下放脚的情况
+# CBFs = loadCBFsJson("data/learncbf/debug_2020-05-23-10_49_06/CBF2.json")
+# the experiment on my computer, very few samples, At last the CBF becomes to tight so that it is impossible to finish one single loop
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-13_21_40/CBF7.json") 
 
+CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_40_12/CBF10.json")
 [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
-
-# Polyparameter = json.load(open("data/CBF/Feasible_2020-05-19-09_30_24.json","r")) # first CBF
-# Polyparameter = json.load(open("data/CBF/OnHandCraft_2020-05-19-16_05_18.json","r"))
-
-# Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-22_57_23/CBF2.json","r")) # the CBF0 of walking
-# Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_44_25/CBF1.json","r")) # the CBF0 of walking
-# Polyparameter = json.load(open("data/learncbf/redLegQ2_2020-05-14-15_16_18/CBF1.json","r")) # the CBF0 of walking
 
 # Make the init_state positive in CBF
 

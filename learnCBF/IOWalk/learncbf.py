@@ -38,7 +38,7 @@ def representEclips(A,b,c):
     points = [b + np.sqrt(max(0,-c)) * e * vv for e,v in zip(E,V.T) for vv in [v,-v]] 
     return points,E,-c
 
-
+samplerCallback = lambda args:None
 def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     """
     sample a lot of trajectories, stop when the CBF constraint cannot be satisfied
@@ -50,7 +50,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     ct = CBF_WALKER_CTRL()
     reset(ct)
     Balpha = Balpha + BalphaStd*(0.5-np.random.random(size = Balpha.shape))
-    Kp = 200 + 400*np.random.rand()
+    Kp = 300 + 100*np.random.rand()
     Kd = 10+np.log(Kp)*np.random.rand()*2
     CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
     CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
@@ -66,10 +66,11 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
         return not (all(obj.LOG_CBF_ConsValue>-1e-6))
     ct.callbacks.append(callback_break)
     ct.step(15)
+    samplerCallback(locals())
     return Traj
 
 
-def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
+def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
     """
     get safe points and danger points given a trajectory.
         The safe points are the points before `safeDT` of the termination
@@ -82,6 +83,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
             otherwise it means all points near by are bad points.
     args lin_eps: the epsilon to bound the area of linearlization, used to limit x_danger+
     """
+    assert not (traj[-1][5]>0).all(), "NO CBF Cons is violated in the last step, traj might be convergent"
 
     # the danger points
     DcA,DcB,Dcg = traj[-1][4] # the Continues dynamics of the terminal point
@@ -114,7 +116,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
         a = 2**a
         cpa = np.diag([a]*(DcA.shape[0]//2)+[1]*(DcA.shape[0]//2))
         cpobj = cp.Minimize(cp.norm(cpa @ (cpx - tx))**2)
-        cpcons = (   
+        cpcons = (
                 [tx.T @ HA @ (2*cpx - tx) + Hb.T @ cpx  + Hc >=0 for HA,Hb,Hc in CBFs]
                 + [ cpB >=0 for cpB in cpBs]
                 + [ cpB >=0 for cpB in cpBs_half]
@@ -146,7 +148,7 @@ def GetPoints(traj,CBFs, mc, dangerDT, safeDT, lin_eps):
         
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
-    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),5)]
+    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),2)]
 
     if(SYMMETRY_AUGMENT):
         x_safe_aug = []
@@ -363,6 +365,7 @@ class LearnCBFSession(LearnCBFSession_t):
 
         self.IterationInfo_ = [] # a list of dict: {start_time, end_time, sampleFile, CBFFile}
         self.SampleExceptions_ = []
+        self.sampleLengths_ = []
 
     def sampleExceptionHander(self,traj,ex):
         dumpname = os.path.abspath(os.path.join(self.resultPath,"ExceptionTraj%d.pkl"%time.time()))
@@ -376,11 +379,17 @@ class LearnCBFSession(LearnCBFSession_t):
         } ,open(dumpname,"wb"))
         self.SampleExceptions_.append({"TrajPath":dumpname,"Exception":str(ex)})
 
-        
+    def samplercallBack_(self,kwargs):
+        self.sampleLengths_.append(kwargs["Traj"][-1][0])
+
     def body(self):
         NoKeyboardInterrupt = True
         dumpCBFsJson(self.CBFs0,os.path.join(self.resultPath,"CBF0.json"))
         # pool = None
+        
+        global samplerCallback
+        samplerCallback = self.samplercallBack_
+        
         for i in range(self.Iteras):
             assert NoKeyboardInterrupt, "KeyboardInterrupt caught"    
             try:
@@ -399,6 +408,9 @@ class LearnCBFSession(LearnCBFSession_t):
                 sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
                 self.IterationInfo_[-1]["sampleFile"] = sampleFile
                 pkl.dump(samples,open(sampleFile,"wb"))
+
+                self.IterationInfo_[-1]["averageTrajLength"] = np.mean(self.sampleLengths_)
+                self.sampleLengths_ = []
 
                 currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
                 addedCBF = [(A,b,c)]
@@ -429,8 +441,9 @@ if __name__ == '__main__':
                          CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
                          CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
                          CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
-                         CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)), # limit the angle of the torso
+                         CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)),
+                         CBF_GEN_conic(10,10000,(0,1,-0.017,2)) # limit the angle of the torso
                          ] ,
-        name = "SafeWalk2",numSample=200, Iteras = 20, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:0.9, -1:0.1}, ProcessNum=0)
+        name = "SafeWalk2",numSample=100, Iteras = 20, dangerDT=0.01, safeDT=0.1,
+        class_weight={1:0.9, -1:0.1}, ProcessNum=None)
     s()
