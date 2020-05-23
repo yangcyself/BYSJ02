@@ -53,7 +53,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         Mat[17,10:14] = Labelmap[:,:2] @ leg_angle_mat # stance toe
         Mat[18,10:14] = Labelmap[:,2:] @ leg_angle_mat # swing toe
         
-        Mat[9,0] = Mat[19,0] = 1/self.stepLength # Tau
+        Mat[9,0] = Mat[19,10] = 1/self.stepLength # Tau
 
         return Mat, rMat
 
