@@ -11,6 +11,7 @@ import cvxpy as cp
 from learnCBF.IOWalk.IOWalkUtil import *
 from learnCBF.FittingUtil import sqeuclidean, dumpCBFsJson, loadCBFsJson
 from learnCBF.FittingUtil import kernel_Poly1 as kernel
+from learnCBF.SampleUtil import randomSample
 from util.CBF_builder import CBF_GEN_conic, CBF_GEN_degree1
 from ExperimentSecretary.Core import Session
 import multiprocessing
@@ -20,6 +21,7 @@ import time
 from glob import glob
 import dill as pkl
 import json
+
 
 SYMMETRY_AUGMENT = False
 
@@ -69,7 +71,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     samplerCallback(locals())
     return Traj,(Balpha,Kp,Kd)
 
-AddedFirstState = False
+
 def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
     """
     get safe points and danger points given a trajectory.
@@ -148,12 +150,7 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
         
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
-    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),2)]
-    global AddedFirstState
-    if(not AddedFirstState):
-        x_safe.append((traj[0][2],traj[0][3],traj[0][4]))
-        AddedFirstState = True
-
+    x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),1)]
     if(SYMMETRY_AUGMENT):
         x_safe_aug = []
         for x,u,(DAf,DBf,Dgf) in x_safe:
@@ -179,7 +176,6 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
             Dgf[[3,4,5,6, 13,14,15,16]] = Dgf[[5,6,3,4, 15,16,13,14]]
             x_danger_aug.append((x,u,(DAf,DBf,Dgf)))
         x_danger += x_danger_aug
-    assert False, "test the exception Handelr"
     return x_danger,x_safe
 
 
@@ -189,6 +185,8 @@ def getAsample(inputarg):
     traj,param = sampler(CBF, mc, BalphaStd = 0.03)
     try:
         x_danger,x_safe = GetPoints(traj,CBF, mc,dangerDT,safeDT,lin_eps)
+    except KeyboardInterrupt as ex:
+        raise ex
     except Exception as ex:
         if(ExceptionHandel) is not None:
             ExceptionHandel(traj,param,ex)
@@ -453,6 +451,9 @@ class LearnCBFSession(LearnCBFSession_t):
         return self.SampleExceptions_
 
 if __name__ == '__main__':
+    protectSamples = randomSample(pkl.load(open("data/star/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb")),100,30)
+    protectPath = "./data/protectPoints/firstProtectSample.pkl"
+    pkl.dump(protectSamples,open(protectPath,"wb"))
     s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
                          CBF_GEN_conic(10,10000,(0,1,0.1,6)),
                          CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
@@ -463,6 +464,6 @@ if __name__ == '__main__':
                          CBF_GEN_conic(10,10000,(0,1,-3.00,7)),
                          CBF_GEN_conic(10,10000,(0,1,-3.00,8)),
                          ] ,
-        name = "SafeWalk2",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:0.9, -1:0.1}, ProcessNum=None)
+        name = "protected",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1, protectPoints=protectPath,
+        class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()

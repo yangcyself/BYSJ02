@@ -46,3 +46,16 @@ class GaussionProcess:
         self.y.append(y)
 
 
+def randomSample(trajdict, num=20, IncludeCollisionPoints = 0):
+    """
+    randomly sample `num` states from the trajdict["Hx"], if IncludeAllCollisionPoints, then IncludeAllCollisionPoints
+    
+    return an array of points [num x dim]
+    """
+    trajdict["Hx"] = np.array(trajdict["Hx"])
+    tau = trajdict["Hx"][:,9]
+    collideInd = np.where(abs(tau[1:]-tau[:1])>0.1)[0]
+    CollisonPoints = trajdict["Hx"][np.random.choice(collideInd,size = IncludeCollisionPoints)]
+    ChoosePoints = trajdict["Hx"][np.random.choice(len(trajdict["Hx"]),size = num)]
+    return np.array(list(CollisonPoints) + list(ChoosePoints))
+    
