@@ -7,11 +7,18 @@ sys.path.append(".")
 from ctrl.playBackCtrl import *
 import pickle as pkl
 import matplotlib.pyplot as plt
+from util.visulization import phasePortrait
 
 # traj = pkl.load(open("data/Traj/1588045936.pkl","rb"))
-traj = pkl.load(open("data/Traj/1588230703.pkl","rb"))
+# traj = pkl.load(open("data/Traj/1588230703.pkl","rb"))
+traj = pkl.load(open("data/learncbf/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb"))
 # traj = pkl.load(open("data/Traj/1588230736.pkl","rb"))
 # traj = pkl.load(open("data/Traj/1588230836.pkl","rb"))
+
+for i,name in enumerate(["x","y",'r',"q1_r","q2_r","q1_l","q2_l","stance_toe","swing_toe","tau"]):
+    plt.figure()
+    phasePortrait(traj,dim = i,label=name)
+    plt.draw()
 
 ct =playBackCTRL(traj)
 ct.restart()
@@ -22,11 +29,11 @@ def callback_traj(obj):
     Traj.append((obj.t, obj.state))
 ct.callbacks.append(callback_traj)
 
-ct.step(1)
+ct.step(ct.trajLength)
 
 time.sleep(1)
 
-ct.playstate(1)
+ct.playstate(ct.trajLength)
 
 T = [t[0] for t in Traj]
 playbackState = np.array([ct.getTraj(t)['state'] for t in T])

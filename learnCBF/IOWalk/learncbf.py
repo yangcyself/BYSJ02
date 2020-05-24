@@ -446,8 +446,10 @@ if __name__ == '__main__':
                          CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
                          CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
                          CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)),
-                         CBF_GEN_conic(10,10000,(0,1,-0.017,2)) # limit the angle of the torso
+                         CBF_GEN_conic(10,10000,(0,1,-0.017,2)), # limit the angle of the torso
+                         CBF_GEN_conic(10,10000,(0,1,-3.00,7)),
+                         CBF_GEN_conic(10,10000,(0,1,-3.00,8)),
                          ] ,
-        name = "SafeWalk2",numSample=200, Iteras = 20, dangerDT=0.01, safeDT=0.1,
-        class_weight={1:0.9, -1:0.1}, ProcessNum=0)
+        name = "SafeWalk2",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1,
+        class_weight={1:0.9, -1:0.1}, ProcessNum=None)
     s()

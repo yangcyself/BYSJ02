@@ -12,7 +12,7 @@ from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
 import pickle as pkl
 import json
-from learnCBF.FittingUtil import loadCBFsJson
+from learnCBF.FittingUtil import loadCBFsJson, loadJson
 from util.CBF_builder import *
 
 
@@ -46,18 +46,23 @@ init_state = np.array([
 Balpha[[0,2],:] += np.math.pi
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
-CBF_WALKER_CTRL.IOLin.reg(ct,kp = 320, kd = 20)
+CBF_WALKER_CTRL.IOLin.reg(ct,kp = 310, kd = 20)
 
 
 # CBFs = loadCBFsJson("data/learncbf/debug_2020-05-23-10_49_06/CBF2.json")
 # the experiment on my computer, very few samples, At last the CBF becomes to tight so that it is impossible to finish one single loop
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-13_21_40/CBF7.json") 
 
-CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_40_12/CBF10.json")
-[ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_40_12/CBF10.json")
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_41_11/CBF2.json") # 使用对称学习出来的，使用对称并没有什么很好的效果，CBF3无法完成第一步
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-15_55_43/CBF3.json")
+# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-15_57_39/CBF2.json") # 这两个实验的失败机理有待仔细研究
+# [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
 
 # Make the init_state positive in CBF
+# CBF = loadJson("./data/CBF/OnOldFeatures_2020-05-23-16_02_19.json")
+# ct.addCBF(*CBF)
 
 # ct.resetFlags()
 # IOLinearCTRL.state.set(ct,init_state)
