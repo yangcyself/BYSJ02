@@ -67,7 +67,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     ct.callbacks.append(callback_break)
     ct.step(15)
     samplerCallback(locals())
-    return Traj
+    return Traj,(Balpha,Kp,Kd)
 
 AddedFirstState = False
 def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
@@ -179,18 +179,19 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
             Dgf[[3,4,5,6, 13,14,15,16]] = Dgf[[5,6,3,4, 15,16,13,14]]
             x_danger_aug.append((x,u,(DAf,DBf,Dgf)))
         x_danger += x_danger_aug
+    assert False, "test the exception Handelr"
     return x_danger,x_safe
 
 
 def getAsample(inputarg):
     if(len(inputarg)==5): inputarg.append(None) # ExceptionHandel
     CBF,dangerDT,safeDT,mc,lin_eps, ExceptionHandel = inputarg
-    traj = sampler(CBF, mc, BalphaStd = 0.03)
+    traj,param = sampler(CBF, mc, BalphaStd = 0.03)
     try:
         x_danger,x_safe = GetPoints(traj,CBF, mc,dangerDT,safeDT,lin_eps)
     except Exception as ex:
         if(ExceptionHandel) is not None:
-            ExceptionHandel(traj,ex)
+            ExceptionHandel(traj,param,ex)
             print("Record Exception:", str(ex))
             x_danger,x_safe = [],[]
         else:
@@ -198,7 +199,7 @@ def getAsample(inputarg):
     return x_danger,x_safe
 
 
-def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, lin_eps, class_weight= None, 
+def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dangerDT, safeDT, lin_eps, protectPoints, class_weight= None,
                 pool = None, sampleExceptionHander = None):
     """
     One iteration of the learnCBF: input a CBF, calls sampler and GetPints, and return a CBF
@@ -216,6 +217,7 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
         min_{w,b}  ||w||
         s.t.    y_i(x_i^T w + b) > 1 //SVM condition
                 y_i(dB(x_i,u_i)+ mc B(x_i)) > 0 for y_i > 0  //CBF defination
+    args protectPoints: The list of points that y should be one, however, no u_list is provided
     """
 
     # try: #DEBUGGING CLOUSE
@@ -251,6 +253,15 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     uvec = np.concatenate(u_list,axis = 0) # make the array of u a vector
     assert(lenfu == len(uvec))
     print("len(feasiblePoints)",len(feasiblePoints))
+
+    ### Add Protect Points to the dataset
+    if(protectPoints is not None and len(protectPoints)):
+        protect_X_aug = kernel.augment(protectPoints)
+        X = np.concatenate([X,protectPoints],axis=0)
+        X_aug = np.concatenate([X_aug,protect_X_aug],axis=0)
+        y = np.array(list(y) + [1]*len(protectPoints))
+    else:
+        protectPoints = [] # used for `len(protectPoints)`
 
     def obj(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
@@ -307,8 +318,8 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
     bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY1]
-    bounds[lenw:-lenfu,0] = 0 # set c > 0
-    bounds[lenw:-lenfu,1] = np.inf
+    bounds[lenw:-lenfu,:] = 0 # set c > 0
+    bounds[lenw:-lenfu-len(protectPoints),1] = np.inf # bound the protected points, no relaxation are allowed
     # bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
     bounds[-lenfu:,1] =  np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
@@ -344,11 +355,11 @@ class LearnCBFSession_t(Session):
 
 class LearnCBFSession(LearnCBFSession_t):
     def __init__(self, CBFs0, name = "tmp", Iteras = 10, mc = 100, gamma0=0.01, gamma = 1, gamma2=1, class_weight = None, 
-                    numSample = 200, dangerDT=0.01, safeDT=0.5, lin_eps = 0.2, ProcessNum = None):
+                    numSample = 200, dangerDT=0.01, safeDT=0.5, lin_eps = 0.2, protectPoints = None, ProcessNum = None):
         ProcessNum = max(1,multiprocessing.cpu_count() - 2) if ProcessNum is None else ProcessNum 
         # ProcessNum = None # IMPORTANT!!! The Behavior of Pybullet in multiprocess has not been tested
         super().__init__(expName="IOWalkLearn", name = name, Iteras = 10, mc = mc, gamma0 = gamma0, gamma = gamma, gamma2 = gamma2, class_weight = class_weight, 
-                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, lin_eps = lin_eps, ProcessNum = ProcessNum)
+                    numSample = numSample,dangerDT = dangerDT,safeDT = safeDT, lin_eps = lin_eps, ProcessNum = ProcessNum, protectPoints = protectPoints)
 
         self.Iteras = Iteras
         self.mc = mc
@@ -364,6 +375,7 @@ class LearnCBFSession(LearnCBFSession_t):
         self.ProcessNum = ProcessNum
     
         self.resultPath = "data/learncbf/%s_%s"%(name,self._storFileName)
+        self.protectPoints = pkl.load(open(protectPoints,"rb")) if protectPoints is not None else None
         os.makedirs(self.resultPath, exist_ok=True)
         self.add_info("resultPath",self.resultPath)
 
@@ -371,7 +383,7 @@ class LearnCBFSession(LearnCBFSession_t):
         self.SampleExceptions_ = []
         self.sampleLengths_ = []
 
-    def sampleExceptionHander(self,traj,ex):
+    def sampleExceptionHander(self,traj,param,ex):
         dumpname = os.path.abspath(os.path.join(self.resultPath,"ExceptionTraj%d.pkl"%time.time()))
         # obj.t, obj.state, obj.Hx, obj.CBF_CLF_QP, (obj.DHA, obj.DHB, obj.DHg), obj.LOG_CBF_ConsValue)
         pkl.dump({
@@ -379,7 +391,8 @@ class LearnCBFSession(LearnCBFSession_t):
             "state": [t[1] for t in traj],
             "Hx": [t[2] for t in traj],
             "u": [t[3] for t in traj],
-            "CBFCons": [t[5] for t in traj]
+            "CBFCons": [t[5] for t in traj],
+            "param":param
         } ,open(dumpname,"wb"))
         self.SampleExceptions_.append({"TrajPath":dumpname,"Exception":str(ex)})
 
@@ -404,10 +417,10 @@ class LearnCBFSession(LearnCBFSession_t):
                 CBFs = loadCBFsJson(currentCBFFile)
                 if(self.ProcessNum >=1):
                     with Pool(self.ProcessNum) as pool:
-                        A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, sampleExceptionHander=self.sampleExceptionHander)
+                        A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, protectPoints=self.protectPoints, sampleExceptionHander=self.sampleExceptionHander)
                 else:
                     pool = None
-                    A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, sampleExceptionHander=self.sampleExceptionHander)    
+                    A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, protectPoints=self.protectPoints, sampleExceptionHander=self.sampleExceptionHander)    
                 self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
                 sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
                 self.IterationInfo_[-1]["sampleFile"] = sampleFile

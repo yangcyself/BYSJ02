@@ -11,7 +11,8 @@ from util.visulization import phasePortrait
 
 # traj = pkl.load(open("data/Traj/1588045936.pkl","rb"))
 # traj = pkl.load(open("data/Traj/1588230703.pkl","rb"))
-traj = pkl.load(open("data/learncbf/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb"))
+# traj = pkl.load(open("data/learncbf/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb"))
+traj = pkl.load(open("data/learncbf/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590286056.pkl","rb"))
 # traj = pkl.load(open("data/Traj/1588230736.pkl","rb"))
 # traj = pkl.load(open("data/Traj/1588230836.pkl","rb"))
 
@@ -40,6 +41,7 @@ playbackState = np.array([ct.getTraj(t)['state'] for t in T])
 simuState = np.array([t[1] for t in Traj])
 
 dim = 5
+plt.figure()
 plt.plot(T,playbackState[:,dim],label = "playbackState")
 plt.plot(T,simuState[:,dim],label = "simuState")
 plt.legend()
