@@ -246,6 +246,7 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     feasiblePoints = [(x,xa) for x,xa,y in  zip(X,X_aug,y) if y ==1]
     feasiblePoints = [(x,xa,u,DA,DB,Dg) for (x,xa),u,(DA,DB,Dg) in zip(feasiblePoints,u_list,DB_list)]
     udim = len(u_list[0])
+    leny = len(y) # the length of y without protectPoints
     print("udim:",udim)
     lenfu = len(feasiblePoints) * udim # The length of all the `du`
     uvec = np.concatenate(u_list,axis = 0) # make the array of u a vector
@@ -264,7 +265,6 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     def obj(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         return gamma0*sqeuclidean(w[:-1]) +  np.sum(gamma_list * c) + gamma2 * sqeuclidean(u_ - uvec)
-
     def grad(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         ans = gamma0*2*w
@@ -272,12 +272,16 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
         ans = np.array(list(ans)+list(gamma_list) +list(2*gamma2*(u_ - uvec)))
         return ans.reshape((-1)) # shape (-1) rather than (1,-1) is necessary for trust-constr
 
+
     def SVMcons(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
+        c = np.array(list(c)+[0]*len(protectPoints))
         return (y * (X_aug @ w) - 1 + c).reshape(-1)
     def SVMjac(w):
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
-        return np.concatenate([y.reshape((-1,1))*X_aug, np.eye(len(c)),np.zeros((len(c),lenfu)) ],axis=1)
+        return np.concatenate([y.reshape((-1,1))*X_aug, 
+                            np.concatenate([np.eye(len(c)),np.zeros((len(protectPoints),len(c)))],axis = 0),
+                            np.zeros((len(y),lenfu))],axis=1) # note: this len(y) is different from leny
 
     # [w.T @ kernel.jac(x) @ Dyn_A @ x  +  
     #                 MAX_INPUT * np.linalg.norm(Dyn_B.T @ kernel.jac(x).T @ w, ord = 1) for x in X_c])
@@ -286,7 +290,6 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         return np.array([w.T @ kernel.jac(x) @ (A @ x + B @ (u_[i*udim:(i+1)*udim]) + g) + mc * xa @ w
                     for i,(x,xa,u,A,B,g) in enumerate(feasiblePoints)])
-
     def feasibleJac(w):        
         w,c,u_ = w[:lenw],w[lenw:-lenfu],w[-lenfu:]
         return np.concatenate([ 
@@ -300,7 +303,7 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     #     return
 
     options = {"maxiter" : 500, "disp"    : True,  "verbose":1, 'iprint':2} # 'iprint':2,
-    lenx0 = lenw + len(y) + lenfu
+    lenx0 = lenw + leny + lenfu
     x0 = np.random.random(lenx0) *0
     # x0[[int((41-i)*i/2) for i in range(1,dim)]] = -1
     # pos_x_mean = np.mean([x for x,y in zip(X,y) if y==1], axis = 0)
@@ -316,8 +319,8 @@ def learnCBFIter(CBFs, badpoints, mc, dim, gamma0, gamma, gamma2, numSample, dan
     
     bounds = np.ones((lenx0,2)) * np.array([[-1,1]]) * 9999
     bounds[0,:] *= 0 # the first dim `x`  TODO the first dim of x should have more [POLY1]
-    bounds[lenw:-lenfu,:] = 0 # set c > 0
-    bounds[lenw:-lenfu-len(protectPoints),1] = np.inf # bound the protected points, no relaxation are allowed
+    bounds[lenw:-lenfu,0] = 0 # set c > 0
+    bounds[lenw:-lenfu,1] = np.inf # bound the protected points, no relaxation are allowed
     # bounds[lenw+np.array([i for i,y in enumerate(y) if y==1]),1] = 0  # TODO decide whether to comment out this line
     bounds[-lenfu:,0] = -np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
     bounds[-lenfu:,1] =  np.array(list(GP.MAXTORQUE)*len(feasiblePoints))
