@@ -457,16 +457,18 @@ if __name__ == '__main__':
     protectSamples = randomSample(pkl.load(open("data/star/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb")),100,30)
     protectPath = "./data/protectPoints/firstProtectSample.pkl"
     pkl.dump(protectSamples,open(protectPath,"wb"))
-    s = LearnCBFSession([CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
-                         CBF_GEN_conic(10,10000,(0,1,0.1,6)),
-                         CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
-                         CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
-                         CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
-                         CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)),
-                         CBF_GEN_conic(10,10000,(0,1,-0.017,2)), # limit the angle of the torso
-                         CBF_GEN_conic(10,10000,(0,1,-3.00,7)),
-                         CBF_GEN_conic(10,10000,(0,1,-3.00,8)),
-                         ] ,
-        name = "protected",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1, protectPoints=protectPath,
+    CBFs0 = loadCBFsJson("data/learncbf/protected_2020-05-25-01_40_21/CBF6.json")
+    s = LearnCBFSession(#[CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
+                        #  CBF_GEN_conic(10,10000,(0,1,0.1,6)),
+                        #  CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
+                        #  CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
+                        #  CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
+                        #  CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)),
+                        #  CBF_GEN_conic(10,10000,(0,1,-0.017,2)), # limit the angle of the torso
+                        #  CBF_GEN_conic(10,10000,(0,1,-3.00,7)),
+                        #  CBF_GEN_conic(10,10000,(0,1,-3.00,8)),
+                        #  ] ,
+                        CBFs0 = CBFs0,
+        name = "protected_careful",numSample=150, Iteras = 20, dangerDT=0.0025, safeDT=0.03, protectPoints=protectPath,
         class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()
