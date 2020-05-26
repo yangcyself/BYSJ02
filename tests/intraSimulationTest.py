@@ -73,8 +73,15 @@ def randomParam(trajA):
 
 if __name__ == '__main__':
     result = {}
-    Trajs = Trajs
-    for i,traj in enumerate(Trajs):
-        result[i] = {"ACBF_Bparam":{j:ACBF_Bparam(traj,traj_) for j,traj_ in enumerate(Trajs)},
-                    "randomParameters":[randomParam(traj) for j in range(10)]}
-    pkl.dump(result,open("data/analysis.pkl","wb"))
+    with Session(__file__) as s:
+        try:
+            for i,traj in enumerate(Trajs):
+                result[i] = {"ACBF_Bparam":{j:ACBF_Bparam(traj,traj_) for j,traj_ in enumerate(Trajs)},
+                            # "randomParameters":[randomParam(traj) for j in range(10)]
+                            }
+        except AssertionError as ex:
+            if("Interrupted"in str(ex)):
+                pass
+        finally:
+            pkl.dump(result,open("data/analysis.pkl","wb"))
+            s.add_info("resultPath","data/analysis.pkl")

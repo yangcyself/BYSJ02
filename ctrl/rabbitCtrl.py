@@ -122,7 +122,7 @@ class CTRL:
 
 
     def step(self,T = None,sleep=None):
-        assert not GP.KEYBOARD_INTERRPUT
+        assert not GP.KEYBOARD_INTERRPUT,"Interrupted"
         T = dt if T is None else T
         for i in range(int(T/dt+0.5)):
             # Call all regested control components
