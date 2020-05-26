@@ -30,10 +30,8 @@ class playBackCTRL(CTRL):
 
     def getTraj(self,t):
         t = np.argmin(abs(np.array(self.traj["t"])-t))
-        return {k:v[t] for k,v in self.traj.items()}
+        return {k:v[t] if type(v)==list and len(v)>t else None for k,v in self.traj.items()}
 
-
-    
 
     def numericalJac(self, func,du = 1e-3):
         """
