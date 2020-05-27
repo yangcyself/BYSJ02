@@ -10,6 +10,7 @@ import globalParameters as GP
 GP.STARTSIMULATION = False
 from ctrl.IOLinearCtrl import *
 
+from util.AcademicPlotStyle import *
 import matplotlib.pyplot as plt
 
 ct = IOLinearCTRL()
@@ -29,12 +30,18 @@ C = np.arange(0.001,1,0.02)
 def getBeizer(c):
     ct.resetFlags()
     IOLinearCTRL.VC_c.set(ct,c)
+    IOLinearCTRL.STEP_label.set(ct, (True, - 0.001, np.eye(4)))
     return ct.IOcmd
 
 cmds = [getBeizer((c, 1, 1, 0.1576)) for c in C] # pass s and ds as 1 to only compute the phi dphi and ddphi
 
 phiarray = np.array([c[0] for c in cmds])
 for i in range(phiarray.shape[1]):
-    plt.plot(C,phiarray[:,i],label = "q%d"%(i+1))
-plt.legend()
+    plt.plot(C,phiarray[:,i],label = "$\hat{q}_%d$"%(i+1))
+plt.title("Reference Joint Angles")
+plt.xlabel("$p_x - p_{x0}(m)$")
+plt.ylabel("Joint Angle (rad)")
+plt.grid()
+plt.legend(**legendParam)
+plt.savefig("doc/pics/Beizer.png",bbox_inches = 'tight', pad_inches = 0)
 plt.show()

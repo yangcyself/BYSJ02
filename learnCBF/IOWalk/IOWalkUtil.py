@@ -9,9 +9,7 @@ Balpha =  np.array([
 
 Balpha[[0,2],:] += np.math.pi
 
-def reset(ct):
-    ct.resetStatic()
-    ct.setState([
+initstate = [
     -0.0796848040543580,
     0.795256332708201,
     0.0172782890029275,
@@ -26,5 +24,9 @@ def reset(ct):
     -0.284872086257488,
     1.19997002232031,
     -2.18405395105742,
-    3.29500361015889])
+    3.29500361015889]
+
+def reset(ct):
+    ct.resetStatic()
+    ct.setState(initstate)
 
