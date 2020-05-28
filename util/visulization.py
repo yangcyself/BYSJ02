@@ -39,14 +39,14 @@ def QuadContour(A,B,C, X, Xbase = 0, Ybase = 1,x0 = None):
                 # print((-b - delta)/(2*a))
     return np.array(retList)
 
-def phasePortrait(traj,dim = 1,key = "Hx",ax = None,label = None):
+def phasePortrait(traj,dim = 1,key = "Hx",ax = None,label = None,**kwargs):
     """
         given trajdict("Hx" is needed), return the phasePortrait plot
     """
     ax = plt.gca() if ax is None else ax
     label = dim if label is None else label
     lenth = len(traj[key][0])//2
-    ax.plot(np.array(traj[key])[:,dim],np.array(traj[key])[:,dim+lenth],label = label)
+    ax.plot(np.array(traj[key])[:,dim],np.array(traj[key])[:,dim+lenth],label = label,**kwargs)
     ax.legend()
     return ax
 

@@ -135,7 +135,7 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
         x_danger_star = cpx.value
         u_danger_star = cpu.value
         FoundViolatedCBF = False
-        if(np.linalg.norm(tx - x_danger_star)>lin_eps):
+        if(np.linalg.norm((tx - x_danger_star)[:GP.QDIMS])>lin_eps):
             continue
         u_danger_backs.append(u_danger_star)
         if(np.linalg.norm(tx - x_danger_star)<1e-3):
