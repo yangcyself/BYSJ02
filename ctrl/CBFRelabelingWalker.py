@@ -15,7 +15,7 @@ class CBF_Relabeling_WALKER_CTRL(CBF_WALKER_CTRL):
     """
 
     Hxdim = 8
-    
+
     @CTRL_COMPONENT
     def CBF_Ftr_Mat(self):
         """
@@ -32,6 +32,7 @@ class CBF_Relabeling_WALKER_CTRL(CBF_WALKER_CTRL):
                 np.concatenate([np.zeros((7+1,7)), np.eye(7), np.zeros((1,7))],axis = 0)
         ],axis = 1)
         Mat[3:7,3:7] = Mat[11:15,10:14] = Labelmap
+        Mat[7,0] = Mat[15,7] = 1/self.stepLength # Tau
         rMat = Mat.copy().T
         return Mat, rMat
 
