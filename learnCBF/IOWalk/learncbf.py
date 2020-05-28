@@ -12,7 +12,7 @@ from learnCBF.IOWalk.IOWalkUtil import *
 from learnCBF.FittingUtil import sqeuclidean, dumpCBFsJson, loadCBFsJson
 from learnCBF.FittingUtil import kernel_Poly1 as kernel
 from learnCBF.SampleUtil import randomSample
-from util.CBF_builder import CBF_GEN_conic, CBF_GEN_degree1
+from util.CBF_builder import *
 from ExperimentSecretary.Core import Session
 import multiprocessing
 from multiprocessing import Pool
@@ -25,28 +25,14 @@ import json
 
 SYMMETRY_AUGMENT = False
 
-def representEclips(A,b,c):
-    """
-    represent an Eclips using the end of its axises
-    """
-    sign = -1 # assume A is neg definate
-    A,b,c = sign * A, sign * b, sign * c
-    A += np.eye(A.shape[0])
-    A_inv = np.linalg.inv(A)
-    c = c - 1/4 * b.T @ A_inv @ b
-    b = - 1/2 * A_inv @ b
-    R = sqrtm(A_inv)
-    E,V = np.linalg.eig(R)
-    points = [b + np.sqrt(max(0,-c)) * e * vv for e,v in zip(E,V.T) for vv in [v,-v]] 
-    return points,E,-c
-
 samplerCallback = lambda args:None
 def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     """
     sample a lot of trajectories, stop when the CBF constraint cannot be satisfied
         return sampled trajectories
     """
-    from ctrl.CBFWalker import CBF_WALKER_CTRL, CTRL
+    # from ctrl.CBFWalker import CBF_WALKER_CTRL, CTRL
+    from ctrl.CBFRelabelingWalker import CBF_Relabeling_WALKER_CTRL as CBF_WALKER_CTRL, CTRL
     CTRL.restart()
 
     ct = CBF_WALKER_CTRL()
@@ -135,7 +121,7 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
         x_danger_star = cpx.value
         u_danger_star = cpu.value
         FoundViolatedCBF = False
-        if(np.linalg.norm((tx - x_danger_star)[:GP.QDIMS])>lin_eps):
+        if(np.linalg.norm((tx - x_danger_star)[:len(x_danger_star)//2])>lin_eps):
             continue
         u_danger_backs.append(u_danger_star)
         if(np.linalg.norm(tx - x_danger_star)<1e-3):
@@ -418,10 +404,10 @@ class LearnCBFSession(LearnCBFSession_t):
                 CBFs = loadCBFsJson(currentCBFFile)
                 if(self.ProcessNum >=1):
                     with Pool(self.ProcessNum) as pool:
-                        A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, protectPoints=self.protectPoints, sampleExceptionHander=self.sampleExceptionHander)
+                        A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 16, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, protectPoints=self.protectPoints, sampleExceptionHander=self.sampleExceptionHander)
                 else:
                     pool = None
-                    A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 20, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, protectPoints=self.protectPoints, sampleExceptionHander=self.sampleExceptionHander)    
+                    A,b,c, res, samples =  learnCBFIter(CBFs, [ ], mc = self.mc, dim = 16, gamma0 = self.gamma0, gamma = self.gamma, gamma2 = self.gamma2, numSample = self.numSample, dangerDT = self.dangerDT, safeDT = self.safeDT, lin_eps=self.lin_eps, pool = pool, protectPoints=self.protectPoints, sampleExceptionHander=self.sampleExceptionHander)    
                 self.IterationInfo_[-1]["Optimization_TerminationMessage"] = res.message
                 sampleFile = os.path.join(self.resultPath,"samples%d.pkl"%i)
                 self.IterationInfo_[-1]["sampleFile"] = sampleFile
@@ -454,21 +440,18 @@ class LearnCBFSession(LearnCBFSession_t):
         return self.SampleExceptions_
 
 if __name__ == '__main__':
-    protectSamples = randomSample(pkl.load(open("data/star/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb")),100,30)
-    protectPath = "./data/protectPoints/firstProtectSample.pkl"
-    pkl.dump(protectSamples,open(protectPath,"wb"))
-    CBFs0 = loadCBFsJson("data/learncbf/protected_2020-05-25-01_40_21/CBF6.json")
-    s = LearnCBFSession(#[CBF_GEN_conic(10,10000,(0,1,0.1,4)), # leg limit 
-                        #  CBF_GEN_conic(10,10000,(0,1,0.1,6)),
-                        #  CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,7)), # limit on the toe angle from 3/4pi to 5/4pi
-                        #  CBF_GEN_conic(10,10000,(-1,2*np.math.pi,(np.math.pi/4)**2-np.math.pi**2,8)),
-                        #  CBF_GEN_degree1(10,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
-                        #  CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)),
-                        #  CBF_GEN_conic(10,10000,(0,1,-0.017,2)), # limit the angle of the torso
-                        #  CBF_GEN_conic(10,10000,(0,1,-3.00,7)),
-                        #  CBF_GEN_conic(10,10000,(0,1,-3.00,8)),
-                        #  ] ,
-                        CBFs0 = CBFs0,
-        name = "protected_careful",numSample=150, Iteras = 20, dangerDT=0.0025, safeDT=0.03, protectPoints=protectPath,
+    #protectSamples = randomSample(pkl.load(open("data/star/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb")),100,30)
+    #protectPath = "./data/protectPoints/firstProtectSample.pkl"
+    #pkl.dump(protectSamples,open(protectPath,"wb"))
+    # CBFs0 = loadCBFsJson("data/learncbf/protected_2020-05-25-01_40_21/CBF6.json")
+    s = LearnCBFSession([CBF_GEN_degree0(8,(0,1,0.1,4)), # leg limit 
+                         CBF_GEN_degree0(8,(0,1,0.1,6)), # leg limit 
+                         CBF_GEN_degree1(8,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
+                         CBF_GEN_degree0(8,(*roots2coeff(-1,0.017,np.math.pi/4),2)), # limit on the torso angle
+                         CBF_GEN_degree0(8,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,1,0.5,0,0,0])), # limit on the toe-angle
+                         CBF_GEN_degree0(8,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,0,0,1,0.5,0])), # limit on the toe-angle
+                         ],
+                        # CBFs0 = CBFs0,
+        name = "relabeling",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1, #protectPoints=protectPath,
         class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()

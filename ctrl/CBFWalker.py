@@ -13,6 +13,8 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
     """
         Add two state representing the angel from the stance toe and the swing toe to the torso
     """
+    Hxdim = 10
+    
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         CBF_WALKER_CTRL.CBF_CLF_QP.reg(self) # This operation will cover the `CBF_CLF_QP` in parent class

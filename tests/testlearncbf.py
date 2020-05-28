@@ -8,7 +8,7 @@ if __name__ == '__main__':
         # import learnCBF.IOWalk.learncbf
     # learnCBF.IOWalk.learncbf.SYMMETRY_AUGMENT = False
     # s = LearnCBFSession([CBF_GEN_degree0(10,(0,1,0,4)) # leg limit 
-    #                      ] , lin_eps = 10,
+    #                      ],
     #     name = "debug",numSample=20, Iteras = 1, dangerDT=0.01, safeDT=0.1,
     #     class_weight={1:1, -1:1})
     # s()

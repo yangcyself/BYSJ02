@@ -4,6 +4,12 @@ import numpy as np
 ### UTIL FUNCTION FOR GENERATING CBF ###
 ########################################
 
+def roots2coeff(a,r1,r2):
+    """
+    return the coefficient of a(x-r1)(x-r2)
+    """
+    return a, -a*(r1+r2), a*r1*r2
+
 def CBF_GEN_conic(dim,mc,*args:(float,float,float,{float, np.array})):
     """
     Add  u a u.T + b.T u + c to the CBF
@@ -49,8 +55,8 @@ def CBF_GEN_degree1(dim, *args:(float,float,float,{int, np.array})):
     def vec_u(u):
         if(type(u)==int):
             res = np.zeros((dim,1))
-        res[u] = 1
-        return res
+            res[u] = 1
+            return res
         assert(len(u)==dim)
         return np.array(u).reshape((-1,1))
     args = [(a,b,c,vec_u(u)) for (a,b,c,u) in args]
@@ -78,8 +84,8 @@ def CBF_GEN_degree0(dim, *args:(float,float,float,{int, np.array})):
     def vec_u(u):
         if(type(u)==int):
             res = np.zeros((dim,1))
-        res[u] = 1
-        return res
+            res[u] = 1
+            return res
         assert(len(u)==dim)
         return np.array(u).reshape((-1,1))
     args = [(a,b,c,vec_u(u)) for (a,b,c,u) in args]
