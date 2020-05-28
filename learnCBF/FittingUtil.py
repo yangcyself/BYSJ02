@@ -73,7 +73,7 @@ class kernel_Poly1:
         return np.concatenate([np.eye(len(x)),np.zeros((1,len(x)))],axis=0)
     
     @staticmethod
-    def GetParamDimension(w,dim=20):
+    def GetParamDimension(dim):
         return dim+1
 
     @staticmethod

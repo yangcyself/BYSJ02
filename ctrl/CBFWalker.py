@@ -70,7 +70,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         x = Mat @ self.state
         # add the thetaplus
         redStance, theta_plus, Labelmap = self.STEP_label
-        x[9] -= theta_plus / self.stepLength
+        x[self.Hxdim-1] -= theta_plus / self.stepLength
         return x
 
 
