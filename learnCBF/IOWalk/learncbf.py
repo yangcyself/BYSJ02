@@ -444,12 +444,12 @@ if __name__ == '__main__':
     #protectPath = "./data/protectPoints/firstProtectSample.pkl"
     #pkl.dump(protectSamples,open(protectPath,"wb"))
     # CBFs0 = loadCBFsJson("data/learncbf/protected_2020-05-25-01_40_21/CBF6.json")
-    s = LearnCBFSession([CBF_GEN_degree0(8,(0,1,0.1,4)), # leg limit 
-                         CBF_GEN_degree0(8,(0,1,0.1,6)), # leg limit 
+    s = LearnCBFSession([CBF_GEN_conic(8,10000,(0,1,0.1,4)), # leg limit 
+                         CBF_GEN_conic(8,10000,(0,1,0.1,6)), # leg limit 
                          CBF_GEN_degree1(8,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
-                         CBF_GEN_degree0(8,(*roots2coeff(-1,0.017,np.math.pi/4),2)), # limit on the torso angle
-                         CBF_GEN_degree0(8,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,1,0.5,0,0,0])), # limit on the toe-angle
-                         CBF_GEN_degree0(8,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,0,0,1,0.5,0])), # limit on the toe-angle
+                         CBF_GEN_conic(8,10000,(*roots2coeff(-1,0.017,np.math.pi/4),2)), # limit on the torso angle
+                         CBF_GEN_conic(8,10000,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,1,0.5,0,0,0])), # limit on the toe-angle
+                         CBF_GEN_conic(8,10000,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,0,0,1,0.5,0])), # limit on the toe-angle
                          ],
                         # CBFs0 = CBFs0,
         name = "relabeling",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1, #protectPoints=protectPath,
