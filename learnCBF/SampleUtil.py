@@ -46,16 +46,26 @@ class GaussionProcess:
         self.y.append(y)
 
 
-def randomSample(trajdict, num=20, IncludeCollisionPoints = 0):
+def randomSample(trajdict, tauInd, num=20, IncludeCollisionPoints = 0, period = None, IncludeInit = True):
     """
     randomly sample `num` states from the trajdict["Hx"], if IncludeAllCollisionPoints, then IncludeAllCollisionPoints
     
     return an array of points [num x dim]
     """
-    trajdict["Hx"] = np.array(trajdict["Hx"])
-    tau = trajdict["Hx"][:,9]
+    if(period is None):
+        startInd,endInd = 0,len(trajdict["t"])
+    elif(type(period)==tuple):
+        startInd = np.argmin(abs(np.array(trajdict["t"])-period[0]))
+        endInd = np.argmin(abs(np.array(trajdict["t"])-period[1]))
+    else:
+        startInd = 0
+        endInd = np.argmin(abs(np.array(trajdict["t"])-period))
+    Hx = np.array(trajdict["Hx"])[startInd:endInd]
+    tau = Hx[:,tauInd]
     collideInd = np.where(abs(tau[1:]-tau[:1])>0.1)[0]
-    CollisonPoints = trajdict["Hx"][np.random.choice(collideInd,size = IncludeCollisionPoints)]
-    ChoosePoints = trajdict["Hx"][np.random.choice(len(trajdict["Hx"]),size = num)]
+    CollisonPoints = Hx[np.random.choice(collideInd,size = IncludeCollisionPoints)]
+    ChoosePoints = Hx[np.random.choice(len(Hx),size = num)]
+    if(IncludeInit):
+        ChoosePoints = list(ChoosePoints) + [Hx[0]]
     return np.array(list(CollisonPoints) + list(ChoosePoints))
     

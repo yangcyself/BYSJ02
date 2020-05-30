@@ -49,7 +49,7 @@ Balpha[[0,2],:] += np.math.pi
 Kp, Kd = 340,20
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
 # _, Kp, Kd = pkl.load(open("data/learncbf/protected_2020-05-25-01_39_37/ExceptionTraj1590361352.pkl","rb"))["param"]
-Balpha, Kp, Kd = pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb"))["param"]
+# Balpha, Kp, Kd = pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb"))["param"]
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
 
@@ -64,7 +64,7 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
 # 不知道是不是因为开启了对称，CBF8和CBF7的曲线一模一样，感觉不像是开了对称的样子， 因为训练的CBF就是对称的
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-15_57_39/CBF2.json") # 这两个实验的失败机理有待仔细研究
 
-CBFs = loadCBFsJson("data/learncbf/relabeling_2020-05-28-12_24_15/CBF20.json")
+CBFs = loadCBFsJson("data/learncbf/relabeling_2020-05-28-12_24_15/CBF19.json")
 [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
 
