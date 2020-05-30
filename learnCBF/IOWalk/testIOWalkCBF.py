@@ -6,7 +6,9 @@ import sys
 sys.path.append(".")
 import globalParameters as GP
 # GP.STARTSIMULATION = False
-from ctrl.CBFWalker import *
+# from ctrl.CBFWalker import *
+from ctrl.CBFRelabelingWalker import *
+from ctrl.CBFRelabelingWalker import CBF_Relabeling_WALKER_CTRL as CBF_WALKER_CTRL
 import matplotlib.pyplot as plt
 from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
@@ -44,10 +46,10 @@ init_state = np.array([
 
 
 Balpha[[0,2],:] += np.math.pi
-Kp, Kd = 310,20
+Kp, Kd = 340,20
 # Balpha[:,:] *= -1 # Because the different hand direction with matlab
-_, Kp, Kd = pkl.load(open("data/learncbf/protected_2020-05-25-01_39_37/ExceptionTraj1590361352.pkl","rb"))["param"]
-Balpha, Kp, Kd = pkl.load(open("data/learncbf/protected_2020-05-25-01_39_37/ExceptionTraj1590379115.pkl","rb"))["param"]
+# _, Kp, Kd = pkl.load(open("data/learncbf/protected_2020-05-25-01_39_37/ExceptionTraj1590361352.pkl","rb"))["param"]
+Balpha, Kp, Kd = pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb"))["param"]
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
 
@@ -58,9 +60,11 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
 
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_40_12/CBF10.json")
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_41_11/CBF2.json") # 使用对称学习出来的，使用对称并没有什么很好的效果，CBF3无法完成第一步
-CBFs = loadCBFsJson("data/learncbf/protected_2020-05-25-01_39_37/CBF6.json")
+# CBFs = loadCBFsJson("data/learncbf/protected_2020-05-25-01_39_37/CBF6.json")
 # 不知道是不是因为开启了对称，CBF8和CBF7的曲线一模一样，感觉不像是开了对称的样子， 因为训练的CBF就是对称的
 # CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-15_57_39/CBF2.json") # 这两个实验的失败机理有待仔细研究
+
+CBFs = loadCBFsJson("data/learncbf/relabeling_2020-05-28-12_24_15/CBF20.json")
 [ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
 
 
@@ -178,9 +182,10 @@ def CBFDrift_plot(dim = 0):
 
 ct.callbacks.append(callback_traj)
 def callback_break(obj):
-    return not (3*np.math.pi/4 < obj.Hx[7] < 5*np.math.pi/4 
-                and 3*np.math.pi/4 < obj.Hx[8] < 5*np.math.pi/4
-                and -0.1<obj.Hx[0])
+    return False
+    # return not (3*np.math.pi/4 < obj.Hx[7] < 5*np.math.pi/4 
+    #             and 3*np.math.pi/4 < obj.Hx[8] < 5*np.math.pi/4
+    #             and -0.1<obj.Hx[0])
 ct.callbacks.append(callback_break)
 
 def reset():
