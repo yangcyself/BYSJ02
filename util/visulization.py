@@ -39,15 +39,25 @@ def QuadContour(A,B,C, X, Xbase = 0, Ybase = 1,x0 = None):
                 # print((-b - delta)/(2*a))
     return np.array(retList)
 
-def phasePortrait(traj,dim = 1,key = "Hx",ax = None,label = None,**kwargs):
+def phasePortrait(traj,dim = 1,key = "Hx",ax = None,label = None, DASH_DISCONTINUE = False, c = "b",**kwargs):
     """
         given trajdict("Hx" is needed), return the phasePortrait plot
     """
     ax = plt.gca() if ax is None else ax
     label = dim if label is None else label
     lenth = len(traj[key][0])//2
-    ax.plot(np.array(traj[key])[:,dim],np.array(traj[key])[:,dim+lenth],label = label,**kwargs)
-    ax.legend()
+    pts = np.array(traj[key])[:,[dim,dim+lenth]]
+    print("pts.shape :",pts.shape)
+    
+    if DASH_DISCONTINUE: # (Too Slow and problematic)
+        disContinueInd = np.where(abs(pts[1:,0]-pts[:1,0])>0.1)[0]
+        Inds = np.array([-1]+list(disContinueInd)+[len(pts)])
+        contSec = [pts[i+1:j,...] for i,j in zip(Inds[:-1],Inds[1:])]
+        disSec = [pts[i:i+1,...] for i in disContinueInd]
+        [ax.plot(t[:,0],t[:,1],label = label, **kwargs)  for t in contSec]
+        [ax.plot(t[:,0],t[:,1],"--",label = label, **kwargs)  for t in disSec]
+    else:
+        ax.plot(pts[:,0],pts[:,1],label = label, marker = ".",ls = "--",lw = 1, **kwargs)
     return ax
 
 if __name__ == "__main__":

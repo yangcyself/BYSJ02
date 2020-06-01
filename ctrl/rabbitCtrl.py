@@ -319,7 +319,7 @@ class CTRL:
         (Fr_A, Fr_b): The reaction force Fr in holonomic constraint given u is: Fr = Fr_A @ u + Fr_b
 
             The calculation is from the reaction force in gc operation space:
-            Fr = - Jc_bar (g + B u) - Lambda dJ_gc dg  
+            Fr = - Jc_bar (- g + B u) - Lambda dJ_gc dq  
         """
         FrA = - self.J_gc_bar.T @ np.diag([0,0,0,1,1,1,1])
         Frb = self.J_gc_bar.T @ self.RBD_B - self.gc_Lam @ self.dJ_gc @ self.state[GP.QDIMS:]

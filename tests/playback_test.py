@@ -15,8 +15,9 @@ from util.visulization import phasePortrait
 from glob import glob 
 from learnCBF.FittingUtil import loadCBFsJson
 
-traj = pkl.load(open("data/Traj/1590638422.pkl","rb"))
-traj["Hx"] = traj["Hx"][:-1000]
+# traj = pkl.load(open("data/Traj/1590638422.pkl","rb"))
+traj = pkl.load(open(glob("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj*.pkl")[-1],"rb"))
+# traj["Hx"] = traj["Hx"][:-1000]
 # traj = pkl.load(open("data/Traj/1588230703.pkl","rb"))
 # traj = pkl.load(open("data/learncbf/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590276882.pkl","rb"))
 # traj = pkl.load(open("data/learncbf/SafeWalk2_2020-05-24-01_36_18/ExceptionTraj1590286056.pkl","rb"))
@@ -29,16 +30,21 @@ traj["Hx"] = traj["Hx"][:-1000]
 # traj = pkl.load(open("data/Traj/1588230836.pkl","rb"))
 
 # for i,name in enumerate(["x","y",'r',"q1_r","q2_r","q1_l","q2_l","stance_toe","swing_toe","tau"]):
-for i,(name,dname) in enumerate(zip(["$p_x$","$p_y$",'$r$',"$q_1$","$q_2$","$q_3$","$q_4$","$r_{stance}$","$r_{swing}$","$\\tau$"],
-                                    ["$\dot{p}_x$","$\dot{p}_y$",'$\dot{r}$',"$\dot{q}_1$","$\dot{q}_2$","$\dot{q}_3$","$\dot{q}_4$","$\dot{r}_{stance}$","$\dot{r}_{swing}$","$\dot{\\tau}$"])):
-    print("i")
+# for i,(name,dname) in enumerate(zip(["$p_x$","$p_y$",'$r$',"$q_1$","$q_2$","$q_3$","$q_4$","$r_{stance}$","$r_{swing}$","$\\tau$"],
+#                                     ["$\dot{p}_x$","$\dot{p}_y$",'$\dot{r}$',"$\dot{q}_1$","$\dot{q}_2$","$\dot{q}_3$","$\dot{q}_4$","$\dot{r}_{stance}$","$\dot{r}_{swing}$","$\dot{\\tau}$"])):
+for i,(name,dname) in enumerate(zip(["$p_x$","$p_y$",'$r$',"$\hat{q}_1$","$\hat{q}_2$","$\hat{q}_3$","$\hat{q}_4$","$\\tau$"],
+                                    ["$\dot{p}_x$","$\dot{p}_y$",'$\dot{r}$',"$\dot{\hat{q}}_1$","$\dot{\hat{q}}_2$","$\dot{\hat{q}}_3$","$\dot{\hat{q}}_4$","$\dot{\\tau}$"])):
+    if(i ==0):
+        continue
+    print(i)
     plt.figure()
     phasePortrait(traj,dim = i,label=name)
     plt.xlabel(name+("(rad)" if i <2 else "(m)"))
     plt.ylabel(dname+("(rad/s)" if i <2 else "(m/s)"))
     plt.grid()
-    plt.savefig("doc/pics/phase/learnWalk%s.png"%(name[-4:-1]),bbox_inches = 'tight', pad_inches = 0.1)
+    plt.savefig("doc/pics/phase-2020531/learnWalk%s.png"%(name[-4:-1]),bbox_inches = 'tight', pad_inches = 0.1)
     plt.draw()
+    # break
 
 ## construst simulation with and without CBF
 # plt.figure()

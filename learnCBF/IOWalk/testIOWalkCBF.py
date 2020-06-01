@@ -212,6 +212,18 @@ if __name__ == "__main__":
     # IOcmd_plot(dim = 2)
     # IOcmd_plot(dim = 3)
 
+    ### Academic style plot
+    # from util.AcademicPlotStyle import *
+    # plt.plot([t[0] for t in Traj], [t[8][0] for t in Traj], label = "$B_{0\_safe}$")
+    # plt.plot([t[0] for t in Traj], [t[8][1] for t in Traj], label = "$B_{1\_safe}$")
+    # plt.xlabel("time($s$)")
+    # plt.ylabel("CBF value")
+    # plt.legend(**legendParam)
+    # plt.grid()
+    # CBF_plot()
+    ### Academic style plot
+    
+
     # CBF_plot()
     CBFConsValue_plot()#dim = [1,2])
     # CBFConsValue_plot(dim = 1)
