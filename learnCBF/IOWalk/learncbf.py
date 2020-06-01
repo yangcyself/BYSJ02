@@ -441,10 +441,10 @@ class LearnCBFSession(LearnCBFSession_t):
 
 if __name__ == '__main__':
     protectSamples = randomSample(pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb")),
-                            tauInd=7,num = 100,IncludeCollisionPoints = 30,period=7)
-    protectPath = "./data/protectPoints/ProtectSamples-5-30.pkl"
+                            tauInd=7,num = 100,IncludeCollisionPoints = 80,period=7)
+    protectPath = "./data/protectPoints/ProtectSamples-6-1.pkl"
     pkl.dump(protectSamples,open(protectPath,"wb"))
-    CBFs0 = loadCBFsJson("data/learncbf/relabeling_2020-05-28-12_24_15/CBF19.json")
+    CBFs0 = loadCBFsJson("data/learncbf/relabeling_protect_2020-05-30-02_08_27/CBF10.json")
     s = LearnCBFSession(# [CBF_GEN_conic(8,10000,(0,1,0.1,4)), # leg limit 
                         #  CBF_GEN_conic(8,10000,(0,1,0.1,6)), # leg limit 
                         #  CBF_GEN_degree1(8,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
@@ -453,6 +453,6 @@ if __name__ == '__main__':
                         #  CBF_GEN_conic(8,10000,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,0,0,1,0.5,0])), # limit on the toe-angle
                         #  ],
                         CBFs0 = CBFs0,
-        name = "relabeling_protect",numSample=150, Iteras = 20, dangerDT=0.01, safeDT=0.1, protectPoints=protectPath,
+        name = "relabeling_protect_resume",numSample=150, Iteras = 10, dangerDT=0.003, safeDT=0.02, protectPoints=protectPath,
         class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()
