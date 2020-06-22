@@ -96,7 +96,6 @@ class IOLinearCTRL(CTRL):
     def IOcmd(self, Balpha = None):
         """
             (Y_c, dY_c, ddY_c) where each cmd is a length-4 vector
-            Here I use a 5-order bzser function to represend the command 
         """
         # phi(k) + alpha(k,m+1)*factorial(M)/(factorial(m)*factorial(M-m))*s^m*(1-s)^(M-m);
         K,M = Balpha.shape # K: The number of the virtual constraint, M: the order

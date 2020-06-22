@@ -26,7 +26,7 @@
     <parent link="world"/>
     <child link="x_prismatic"/>
     <axis xyz="1 0 0"/>
-    <limit effort="0.0" lower="-10" upper="10" velocity="1000.0"/>
+    <limit effort="0.0" lower="-20" upper="20" velocity="1000.0"/>
     <origin rpy="0 0 0" xyz="0 0 0"/>
   </joint>
 		

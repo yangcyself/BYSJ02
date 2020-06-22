@@ -60,8 +60,7 @@ class CTRL_COMPONENT:
 
 
     def resetFunc(self,obj,func):
-        assert (self.name == func.__name__ or not
-            "reset function should have the same name as the old one")
+        assert self.name == func.__name__ , "reset function should have the same name as the old one"
         self.func = func
 
 
@@ -79,7 +78,7 @@ class CTRL:
             NOTE: Each Ctrl component accesses self.properties but cannot set any of those properties
     """
 
-    def __init__(self,*args,**kwargs):
+    def __init__(self, circulatePosition = True, auto_camera = True, *args,**kwargs):
         self.ctrl_components = {}
         self.ctrl_flags = {}  # whether control components has to refresh their computation
         self.ctrl_param = {}  # parameters of control components
@@ -90,6 +89,17 @@ class CTRL:
     
         self.resetFlags()
         self.callbacks = []
+
+        #################################
+        # regist some control components
+        if(circulatePosition is not None and circulatePosition):
+            if (type(circulatePosition) == tuple): 
+                CTRL.circulatePosition.reg(self,limit = circulatePosition)
+            else: 
+                CTRL.circulatePosition.reg(self)
+        if(auto_camera is not None and auto_camera):
+            CTRL.auto_camera.reg(self)
+        
 
     def _resetflag(self,k):
         self.ctrl_flags[k] = False
@@ -340,6 +350,27 @@ class CTRL:
         return np.array([0]*3 + list(self._JointTorqueCmd))
 
 
+    @CTRL_COMPONENT
+    def circulatePosition(self,limit = (-9,9)):
+        """
+        keep the robot position in the limitation by transpolation
+        """
+        if (self.state[0] < limit[0] or self.state[0] > limit[1]):
+            s = self.state
+            s[0] = limit[0] + (s[0]-limit[0])%(limit[1]-limit[0])
+            self.setState(s)
+            return True
+        return False
+    
+
+    @CTRL_COMPONENT
+    def auto_camera(self,cameraDistance = 3, targetheight = 0.5, pitch = -20):
+        target = [0,0,targetheight]
+        target[GP.PRISMA_AXIS[0]] = self.state[0]
+        p.resetDebugVisualizerCamera(cameraDistance,0,pitch,target)
+        return True
+
+
     @staticmethod
     def setState(state):
         """
@@ -396,6 +427,7 @@ class CTRL:
         
         for i in range(10):
             p.stepSimulation()
+
 
 
 dt = GP.DT

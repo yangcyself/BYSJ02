@@ -28,8 +28,9 @@ robot = None
 floor = None
 numJoints = None
 
-# MAXTORQUE = np.array([0,0,0,500,500,500,500])
-MAXTORQUE = np.array([0,0,0,100,100,100,100]) # might be enough for walking
+MAXTORQUE = np.array([0,0,0,500,500,500,500])
+# MAXTORQUE = np.array([0,0,0,100,100,100,100]) # might be enough for walking
+# MAXTORQUE = np.array([0,0,0,1,1,1,1]) * 1500
 
 GRAVITY = -9.8
 
