@@ -51,7 +51,7 @@ def IOcmd(self,Balpha = None):
 IOLinearCTRL.IOcmd.resetFunc(ct,IOcmd)
 IOLinearCTRL.IOcmd.reg(ct,Balpha = Balpha)
 
-IOLinearCTRL.IOLin.reg(ct,kp = np.array([2000,800,2000,800]), kd = np.array([50,50,50,50]))
+IOLinearCTRL.IOLin.reg(ct,kp = np.array([1000,1000,1000,1000]), kd = np.array([50,50,50,50]))
 
 Traj = []
 
