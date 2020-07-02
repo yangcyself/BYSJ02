@@ -6,6 +6,7 @@ This controller is a basic one for walking gaits
 
 from ctrl.rabbitCtrl import *
 from math import factorial
+from util.BezierUtil import loadCSV,evalBezier
 
 class IOLinearCTRL(CTRL):
     """
@@ -27,7 +28,9 @@ class IOLinearCTRL(CTRL):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         self.VC_H = np.concatenate([np.zeros((4,3)), np.eye(4)], axis=1)
-        self.stepLength = 0.0779 -( -0.0797)
+        self.ptime= 0.6366
+        self.thetaLength = 0.4608
+        self.theta0 = 2.9085
         IOLinearCTRL.IOLin.reg(self)
         self.LOG_FW = None
         self.LOG_SWICH_STANCE = False
@@ -78,8 +81,7 @@ class IOLinearCTRL(CTRL):
         redStance, theta_plus, Labelmap = self.STEP_label
         return np.array([redStance, not redStance])
         
-
-    @CTRL_COMPONENT
+    @CTRL_COMPONENT 
     def VC_c(self):
         """
         (tau, s, ds, phase_len)
@@ -88,40 +90,28 @@ class IOLinearCTRL(CTRL):
                 Here I use the x-axis of the robot
         """
         redStance, theta_plus, Labelmap = self.STEP_label
-        tau = min(max((self.state[0] - theta_plus) / self.stepLength,0.001),0.999)
-        return tau, self.state[0], self.state[7], self.stepLength
-    
+        q = Labelmap @ self.state[3:7]
+        dq = Labelmap @ self.state[10:14]
+        th = self.state[2]+q[0]+q[1]/2
+        s = (th - self.theta0) / self.thetaLength;
+        # s = s;
+        return s, th, self.state[9]+dq[0]+dq[1]/2, self.thetaLength
 
-    @CTRL_COMPONENT
-    def IOcmd(self, Balpha = None):
+    @CTRL_COMPONENT 
+    def IOcmd(self,Balpha = None):
         """
             (Y_c, dY_c, ddY_c) where each cmd is a length-4 vector
         """
-        # phi(k) + alpha(k,m+1)*factorial(M)/(factorial(m)*factorial(M-m))*s^m*(1-s)^(M-m);
-        K,M = Balpha.shape # K: The number of the virtual constraint, M: the order
-        M = M-1
         tau, s, ds, phase_len = self.VC_c
-        phi = np.sum(
-            [tau**m * (1-tau)**(M-m) * 
-                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
-            axis = 0)
-
-        dphidc = np.sum(
-            [(m * tau**(m-1) * (1-tau)**(M-m) - (M-m)*(1-tau)**(M-m-1) * tau**m ) * 
-                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
-            axis = 0) / phase_len
-
-        ddphiddc = np.sum(
-            [(m * (m-1) * tau**(m-2) * (1-tau)**(M-m) - 2*(M-m) * m * tau**(m-1) * (1-tau)**(M-m-1) + (M-m) * (M-m-1) * tau**m * (1-tau)**(M-m-2))* 
-                Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
-            axis = 0) / (phase_len ** 2)
-
+        tau = max(min(tau,1),0)
+        x,dx,ddx = evalBezier(Balpha,tau)
         redStance, theta_plus, Labelmap = self.STEP_label
-        return Labelmap@ phi, Labelmap@ dphidc * ds, Labelmap@ ddphiddc * ds**2 *0 ### NOTE disable the feedforward of the acc of the gait
-
+        if(tau==0 or tau==1):
+            dx *= 0
+        return Labelmap@ x, Labelmap@ dx/self.ptime, Labelmap@ ddx *0 ### NOTE disable the feedforward of the acc of the gait
 
     @CTRL_COMPONENT
-    def IOLin(self, kp = 100, kd = 20):
+    def IOLin(self, kp = 1000, kd = 50):
         """
         ddYC  =  kp * (Y_c-Y) + kd * (dY_c - dY) + ddY_c
         """
@@ -143,3 +133,48 @@ class IOLinearCTRL(CTRL):
         return self.setJointTorques(u)
 
 
+################################################
+## Alternative implementations
+################################################
+
+## in __init__
+# self.stepLength = 0.0779 -( -0.0797)
+
+## The implementation used through out the graduation project, deprecated after tag `firstEditionPaper`
+# def VC_c(self):
+#     """
+#     (tau, s, ds, phase_len)
+#         s: The clock variable of the virtual constraint from one to zero
+#         Phase_len: The total time for the phase to go from 0 to 1, used to calculate the dt and ddt
+#             Here I use the x-axis of the robot
+#     """
+#     redStance, theta_plus, Labelmap = self.STEP_label
+#     tau = min(max((self.state[0] - theta_plus) / self.stepLength,0.001),0.999)
+#     return tau, self.state[0], self.state[7], self.stepLength
+
+## The implementation used through out the graduation project, deprecated after tag `firstEditionPaper`
+# def IOcmd(self, Balpha = None):
+#     """
+#         (Y_c, dY_c, ddY_c) where each cmd is a length-4 vector
+#     """
+#     # phi(k) + alpha(k,m+1)*factorial(M)/(factorial(m)*factorial(M-m))*s^m*(1-s)^(M-m);
+#     K,M = Balpha.shape # K: The number of the virtual constraint, M: the order
+#     M = M-1
+#     tau, s, ds, phase_len = self.VC_c
+#     phi = np.sum(
+#         [tau**m * (1-tau)**(M-m) * 
+#             Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
+#         axis = 0)
+
+#     dphidc = np.sum(
+#         [(m * tau**(m-1) * (1-tau)**(M-m) - (M-m)*(1-tau)**(M-m-1) * tau**m ) * 
+#             Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
+#         axis = 0) / phase_len
+
+#     ddphiddc = np.sum(
+#         [(m * (m-1) * tau**(m-2) * (1-tau)**(M-m) - 2*(M-m) * m * tau**(m-1) * (1-tau)**(M-m-1) + (M-m) * (M-m-1) * tau**m * (1-tau)**(M-m-2))* 
+#             Balpha[:,m] * factorial(M) / (factorial(m)*factorial(M-m)) for m in range(M+1)], 
+#         axis = 0) / (phase_len ** 2)
+
+#     redStance, theta_plus, Labelmap = self.STEP_label
+#     return Labelmap@ phi, Labelmap@ dphidc * ds, Labelmap@ ddphiddc * ds**2 *0 ### NOTE disable the feedforward of the acc of the gait

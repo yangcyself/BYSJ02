@@ -58,8 +58,8 @@
     <inertial>
       <origin xyz="0 0 0.24" rpy="0 0 0"/>
       <mass value="12"/>
-      <!-- <origin xyz="0 0 0.3" rpy="0 0 0" mark="Made it fail"/> 
-      <mass value="12"/> -->
+      <!-- <origin xyz="0 0 0.3" rpy="0 0 0" mark="Made it fail"/>  -->
+      <!-- <mass value="12"/> -->
       <inertia ixx="0" ixy="0" ixz="0" iyy="1.33" iyz="0" izz="0"/>
     </inertial>
     <visual>
