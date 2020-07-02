@@ -22,10 +22,11 @@ from glob import glob
 import dill as pkl
 import json
 
+# SYMMETRY_AUGMENT = False # deprecated, to use this, back to version [firstEditionPaper]
 
-SYMMETRY_AUGMENT = False
-
+Balpha = loadCSV("./data/Balpha/ta_gait_design.csv")
 samplerCallback = lambda args:None
+
 def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     """
     sample a lot of trajectories, stop when the CBF constraint cannot be satisfied
@@ -36,9 +37,9 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
 
     ct = CBF_WALKER_CTRL()
     reset(ct)
-    Balpha = Balpha + BalphaStd*(0.5-np.random.random(size = Balpha.shape))
-    Kp = 300 + 100*np.random.rand()
-    Kd = 10+np.log(Kp)*np.random.rand()*2
+    Balpha = Balpha * (1 - BalphaStd/2 + BalphaStd*np.random.random(size = Balpha.shape))
+    Kp = 200 + 1800*np.random.rand()
+    Kd = np.log(Kp)*(0.5+np.random.rand())
     CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
     CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
     CBF_WALKER_CTRL.CBF_CLF_QP.reg(ct,mc_b = mc)
@@ -52,7 +53,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     def callback_break(obj):
         return not (all(obj.LOG_CBF_ConsValue>-1e-6))
     ct.callbacks.append(callback_break)
-    ct.step(15)
+    ct.step(30)
     samplerCallback(locals())
     return Traj,(Balpha,Kp,Kd)
 
@@ -70,7 +71,10 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
             otherwise it means all points near by are bad points.
     args lin_eps: the epsilon to bound the area of linearlization, used to limit x_danger+
     """
-    assert not (traj[-1][5]>0).all(), "NO CBF Cons is violated in the last step, traj might be convergent"
+    # assert not (traj[-1][5]>0).all(), "NO CBF Cons is violated in the last step, traj might be convergent"
+    if((traj[-1][5]>0).all()):
+        x_danger = []
+        x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),1)],
 
     # the danger points
     DcA,DcB,Dcg = traj[-1][4] # the Continues dynamics of the terminal point
@@ -136,31 +140,6 @@ def GetPoints(traj, CBFs, mc, dangerDT, safeDT, lin_eps):
     # The safe Points
     x_safe = [(traj[i][2],traj[i][3],traj[i][4]) for i in [int(-safeDT/GP.DT),int(-1.5*safeDT/GP.DT)]]
     x_safe += [(traj[i][2],traj[i][3],traj[i][4]) for i in np.random.choice(len(traj)-int(10*safeDT/GP.DT),1)]
-    if(SYMMETRY_AUGMENT):
-        x_safe_aug = []
-        for x,u,(DAf,DBf,Dgf) in x_safe:
-            x,u,(DAf,DBf,Dgf) = x.copy(),u.copy(),(DAf.copy(),DBf.copy(),Dgf.copy())
-            x[[3,4,5,6, 13,14,15,16]] = x[[5,6,3,4, 15,16,13,14]]
-            u[[3,4,5,6]] = u[[5,6,3,4]]
-            DAf[[3,4,5,6, 13,14,15,16],:] = DAf[[5,6,3,4, 15,16,13,14],:]
-            DAf[:,[3,4,5,6, 13,14,15,16]] = DAf[:,[5,6,3,4, 15,16,13,14]]
-            DBf[[3,4,5,6, 13,14,15,16],:] = DBf[[5,6,3,4, 15,16,13,14],:]
-            DBf[:,[3,4,5,6]] = DBf[:,[5,6,3,4]]
-            Dgf[[3,4,5,6, 13,14,15,16]] = Dgf[[5,6,3,4, 15,16,13,14]]
-            x_safe_aug.append((x,u,(DAf,DBf,Dgf)))
-        x_safe += x_safe_aug
-        x_danger_aug = []
-        for x,u,(DAf,DBf,Dgf) in x_danger:
-            x,u,(DAf,DBf,Dgf) = x.copy(),u.copy(),(DAf.copy(),DBf.copy(),Dgf.copy())
-            x[[3,4,5,6, 13,14,15,16]] = x[[5,6,3,4, 15,16,13,14]]
-            u[[3,4,5,6]] = u[[5,6,3,4]]
-            DAf[[3,4,5,6, 13,14,15,16],:] = DAf[[5,6,3,4, 15,16,13,14],:]
-            DAf[:,[3,4,5,6, 13,14,15,16]] = DAf[:,[5,6,3,4, 15,16,13,14]]
-            DBf[[3,4,5,6, 13,14,15,16],:] = DBf[[5,6,3,4, 15,16,13,14],:]
-            DBf[:,[3,4,5,6]] = DBf[:,[5,6,3,4]]
-            Dgf[[3,4,5,6, 13,14,15,16]] = Dgf[[5,6,3,4, 15,16,13,14]]
-            x_danger_aug.append((x,u,(DAf,DBf,Dgf)))
-        x_danger += x_danger_aug
     return x_danger,x_safe
 
 
@@ -384,6 +363,13 @@ class LearnCBFSession(LearnCBFSession_t):
 
     def samplercallBack_(self,kwargs):
         self.sampleLengths_.append(kwargs["Traj"][-1][0])
+        # pkl.dump({
+        #     "t": [t[0] for t in kwargs["Traj"]],
+        #     "state": [t[1] for t in kwargs["Traj"]],
+        #     "Hx": [t[2] for t in kwargs["Traj"]],
+        #     "u": [t[3] for t in kwargs["Traj"]],
+        #     "CBFCons": [t[5] for t in kwargs["Traj"]],
+        # } ,open("data/tmp/%i.pkl"%int(time.time()),"wb"))
 
     def body(self):
         NoKeyboardInterrupt = True
@@ -417,12 +403,6 @@ class LearnCBFSession(LearnCBFSession_t):
 
                 currentCBFFile = os.path.join(self.resultPath,"CBF%d.json"%(i+1))
                 addedCBF = [(A,b,c)]
-                if SYMMETRY_AUGMENT:
-                    A,b,c = A.copy(),b.copy(),c.copy(),
-                    A[[3,4,5,6, 13,14,15,16],:] =  A[[5,6,3,4, 15,16,13,14],:]
-                    A[:,[3,4,5,6, 13,14,15,16]] =  A[:,[5,6,3,4, 15,16,13,14]]
-                    b[[3,4,5,6, 13,14,15,16]] = b[[5,6,3,4, 15,16,13,14]]
-                    addedCBF.append((A,b,c))
                 dumpCBFsJson(CBFs + addedCBF,currentCBFFile)            
                 self.IterationInfo_[-1]["outputCBFFile"] = currentCBFFile
                 self.IterationInfo_[-1]["end_time"] = str(datetime.datetime.now())
@@ -439,19 +419,15 @@ class LearnCBFSession(LearnCBFSession_t):
         return self.SampleExceptions_
 
 if __name__ == '__main__':
-    protectSamples = randomSample(pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb")),
-                            tauInd=7,num = 100,IncludeCollisionPoints = 80,period=7)
-    protectPath = "./data/protectPoints/ProtectSamples-6-1.pkl"
-    pkl.dump(protectSamples,open(protectPath,"wb"))
-    CBFs0 = loadCBFsJson("data/learncbf/relabeling_protect_2020-05-30-02_08_27/CBF10.json")
-    s = LearnCBFSession(# [CBF_GEN_conic(8,10000,(0,1,0.1,4)), # leg limit 
-                        #  CBF_GEN_conic(8,10000,(0,1,0.1,6)), # leg limit 
-                        #  CBF_GEN_degree1(8,(0,1,-0.1,0)), # limit on the x-velocity, should be greater than 0.1
-                        #  CBF_GEN_conic(8,10000,(*roots2coeff(-1,0.017,np.math.pi/4),2)), # limit on the torso angle
-                        #  CBF_GEN_conic(8,10000,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,1,0.5,0,0,0])), # limit on the toe-angle
-                        #  CBF_GEN_conic(8,10000,(*roots2coeff(-1,3,5*np.math.pi/4),[0,0,1,0,0,1,0.5,0])), # limit on the toe-angle
-                        #  ],
-                        CBFs0 = CBFs0,
-        name = "relabeling_protect_resume",numSample=150, Iteras = 10, dangerDT=0.003, safeDT=0.02, protectPoints=protectPath,
+    # protectSamples = randomSample(pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb")),
+    #                         tauInd=7,num = 100,IncludeCollisionPoints = 80,period=7)
+    # protectPath = "./data/protectPoints/ProtectSamples-6-1.pkl"
+    # pkl.dump(protectSamples,open(protectPath,"wb"))
+    s = LearnCBFSession([
+                         CBF_GEN_conic(8,1000,(*roots2coeff(-1,-np.math.pi/4,np.math.pi/4),2)), # limit on the torso angle
+                         CBF_GEN_conic(8,1000,(*roots2coeff(-1,3*np.math.pi/4,5*np.math.pi/4),[0,0,0,1,0.5,0,0,0])), # limit on the toe-angle
+                         CBF_GEN_conic(8,1000,(*roots2coeff(-1,3*np.math.pi/4,5*np.math.pi/4),[0,0,0,0,0,1,0.5,0])), # limit on the toe-angle
+                         ],
+        name = "newReference", numSample=150, Iteras = 10, dangerDT=0.003, safeDT=0.02,
         class_weight={1:0.9, -1:0.1}, ProcessNum=0)
     s()

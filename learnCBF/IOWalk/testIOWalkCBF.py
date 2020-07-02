@@ -32,10 +32,14 @@ CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
 # ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))
 # ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,6)))
 # ct.addCBF(*CBF_GEN_degree1(10,(0,1,-0.1,0))) # the x-velocity should be greater than 0.1
-
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,4)))
 # ct.addCBF(*CBF_GEN_conic(10,100,(1,np.math.pi/3,(35*np.math.pi/180)**2-(np.math.pi/6)**2,6)))
 # ct.addCBF(*CBF_GEN_conic(10,10000,(-1,0,(np.math.pi/4)**2,2)))
+
+CBFs = [CBF_GEN_conic(8,1000,(*roots2coeff(-1,-np.math.pi/4,np.math.pi/4),2)), # limit on the torso angle
+        CBF_GEN_conic(8,1000,(*roots2coeff(-1,3*np.math.pi/4,5*np.math.pi/4),[0,0,0,1,0.5,0,0,0])), # limit on the toe-angle
+        CBF_GEN_conic(8,1000,(*roots2coeff(-1,3*np.math.pi/4,5*np.math.pi/4),[0,0,0,0,0,1,0.5,0]))] # limit on the toe-angle
+[ct.addCBF(*cbf) for cbf in CBFs]
 
 Traj = []
 def callback_traj(obj):
