@@ -81,8 +81,6 @@ Control component also have other interfaces for debugging and developing, pleas
   - CBFWalker
     - The controller inherits `IOLinearCtrl` and `CBFCtrl`, that can walk with CBF constraints
     - The CBFWalker do not use relabling map, rather, I designed some other features in the state to handel the symmetry.
-  - CBFRelabelingWalker
-    - The CBFWalker with relabel mapping defined
 
 ## LearnCBF
 

@@ -6,9 +6,7 @@ import sys
 sys.path.append(".")
 import globalParameters as GP
 # GP.STARTSIMULATION = False
-# from ctrl.CBFWalker import *
-from ctrl.CBFRelabelingWalker import *
-from ctrl.CBFRelabelingWalker import CBF_Relabeling_WALKER_CTRL as CBF_WALKER_CTRL
+from ctrl.CBFWalker import *
 import matplotlib.pyplot as plt
 from ExperimentSecretary.Core import Session
 from util.visulization import QuadContour
@@ -20,67 +18,15 @@ from util.CBF_builder import *
 
 ct = CBF_WALKER_CTRL()
 
-Balpha =  np.array([
-    [-0.160827987125513,	-0.187607134811070,	-0.0674336818331384,	-0.125516015984117,	-0.0168214255686846,	-0.0313250368138578],
-    [0.0873653371709151,	0.200725783096372,	-0.0300252126874686,	0.148275517821605,	0.0570910838662556,	0.209150474872096],
-    [-0.0339476931185450,	-0.240887593110385,	-0.840294819928089,	-0.462855953941200,	-0.317145689802212,	-0.157521190052112],
-    [0.207777212951830,	    0.519994705831362,	2.12144766616269,	0.470232658089196,	0.272391319931093,	0.0794930524259044] ])
-
-init_state = np.array([
-    -0.0796848040543580,
-    0.795256332708201,
-    0.0172782890029275,
-    -0.160778382265038 + np.math.pi,
-    0.0872665521987388,
-    -0.0336100968515576 + np.math.pi,
-    0.207826470055357,
-
-    0.332565019796099,
-    0.0122814228026706,
-    0.100448183395960,
-    -0.284872086257488,
-    1.19997002232031,
-    -2.18405395105742,
-    3.29500361015889,
-    ])
+Balpha = loadCSV("./data/Balpha/ta_gait_design.csv")
+init_state = loadCSV("./data/Balpha/init-ta_gait_design.csv")
 
 
-Balpha[[0,2],:] += np.math.pi
-Kp, Kd = 340,20
-# Balpha[:,:] *= -1 # Because the different hand direction with matlab
-# _, Kp, Kd = pkl.load(open("data/learncbf/protected_2020-05-25-01_39_37/ExceptionTraj1590361352.pkl","rb"))["param"]
-# Balpha, Kp, Kd = pkl.load(open("data/learncbf/relabeling_2020-05-28-12_24_15/ExceptionTraj1590742999.pkl","rb"))["param"]
+Kp, Kd = 400,20
+
 CBF_WALKER_CTRL.IOcmd.reg(ct,Balpha = Balpha)
 CBF_WALKER_CTRL.IOLin.reg(ct,kp = Kp, kd = Kd)
 
-
-# CBFs = loadCBFsJson("data/learncbf/debug_2020-05-23-10_49_06/CBF2.json")
-# the experiment on my computer, very few samples, At last the CBF becomes to tight so that it is impossible to finish one single loop
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-13_21_40/CBF7.json") 
-
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_40_12/CBF10.json")
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-02_41_11/CBF2.json") # 使用对称学习出来的，使用对称并没有什么很好的效果，CBF3无法完成第一步
-# CBFs = loadCBFsJson("data/learncbf/protected_2020-05-25-01_39_37/CBF6.json")
-# 不知道是不是因为开启了对称，CBF8和CBF7的曲线一模一样，感觉不像是开了对称的样子， 因为训练的CBF就是对称的
-# CBFs = loadCBFsJson("data/learncbf/SafeWalk2_2020-05-23-15_57_39/CBF2.json") # 这两个实验的失败机理有待仔细研究
-
-CBFs = loadCBFsJson("data/learncbf/relabeling_2020-05-28-12_24_15/CBF19.json")
-[ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF) for (HA_CBF,Hb_CBF,Hc_CBF) in CBFs] 
-
-
-# Make the init_state positive in CBF
-# CBF = loadJson("./data/CBF/OnOldFeatures_2020-05-23-16_02_19.json")
-# ct.addCBF(*CBF)
-
-# ct.resetFlags()
-# IOLinearCTRL.state.set(ct,init_state)
-# IOLinearCTRL.contact_mask.set(ct,np.array((True,False)))
-# HA_CBF,Hb_CBF,Hc_CBF = np.array(Polyparameter["A"]), np.array(Polyparameter["b"]), np.array(Polyparameter["c"])
-# sign = np.sign(ct.Hx.T @ HA_CBF @ ct.Hx + Hb_CBF @ ct.Hx + Hc_CBF)
-# assert(sign == 1)
-# HA_CBF,Hb_CBF,Hc_CBF = sign * HA_CBF, sign * Hb_CBF, sign * Hc_CBF 
-
-# ct.addCBF(HA_CBF,Hb_CBF,Hc_CBF)
 
 # add CBF to constraint on the leg
 # ct.addCBF(*CBF_GEN_conic(10,100,(0,1,0.1,4)))

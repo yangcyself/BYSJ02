@@ -13,7 +13,7 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
     """
         Add two state representing the angel from the stance toe and the swing toe to the torso
     """
-    Hxdim = 10
+    Hxdim = 8
     
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -29,35 +29,24 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
     def CBF_Ftr_Mat(self):
         """
         (Map, reverse_Map)
-            Return the Matrix that map the state of the system to the feature of the CBF, the reverse_Map maps the Ftr to CBF's state
-                The angle is r + q_1 + 0.5 * q_2
-
             NOTE: For current implementation, the Feature also uses state[0] as the theta of swing leg
                 See `VC_c` in `IOLinearCtrl` for detail
             
-            Three state are added to the seven. The first is the about the stance leg and the second is about the swing leg, the third is the Tau
-        
+            One state is added to the seven: Tau
         """
         redStance, theta_plus, Labelmap = self.STEP_label
         leg_angle_mat = np.array([1,0.5]) # the q_1 + 0.5 q_2
         Mat = np.concatenate([
-                np.concatenate([np.eye(7),np.zeros((6+7,7))],axis = 0),
-                np.concatenate([np.zeros((7+3,7)), np.eye(7), np.zeros((3,7))],axis = 0)
+                np.concatenate([np.eye(7),np.zeros((2+7,7))],axis = 0),
+                np.concatenate([np.zeros((7+1,7)), np.eye(7), np.zeros((1,7))],axis = 0)
         ],axis = 1)
-
+        Mat[3:7,3:7] = Mat[11:15,10:14] = Labelmap
+        # Mat[7,0] = Mat[15,7] = 1/self.stepLength # Tau
+        Mat[7,2] = Mat[15,10] = 1
+        Mat[7,3:7] = Mat[15,3:7] =  Labelmap[:,:2] @ leg_angle_mat # stance toe
         rMat = Mat.copy().T
-
-        Mat[[7,8],2] = Mat[[17,18],9] = 1
-
-        Mat[7,3:7] = Labelmap[:,:2] @ leg_angle_mat # stance toe
-        Mat[8,3:7] = Labelmap[:,2:] @ leg_angle_mat # swing toe
-
-        Mat[17,10:14] = Labelmap[:,:2] @ leg_angle_mat # stance toe
-        Mat[18,10:14] = Labelmap[:,2:] @ leg_angle_mat # swing toe
-        
-        Mat[9,0] = Mat[19,7] = 1/self.stepLength # Tau
-
         return Mat, rMat
+
 
 
     @property
@@ -70,7 +59,6 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
         x = Mat @ self.state
         # add the thetaplus
         redStance, theta_plus, Labelmap = self.STEP_label
-        x[self.Hxdim-1] -= theta_plus / self.stepLength
         return x
 
 
@@ -167,3 +155,30 @@ class CBF_WALKER_CTRL(CBF_CTRL, IOLinearCTRL):
             print("Fr:", self.J_gc_bar.T @ res_x)
         return self.setJointTorques(res_x[3:])
     
+#########################################################################
+## deprecated implementations
+#########################################################################
+
+# def CBF_Ftr_Mat(self):
+#     """
+#     (Map, reverse_Map)
+#         Return the Matrix that map the state of the system to the feature of the CBF, the reverse_Map maps the Ftr to CBF's state
+#             The angle is r + q_1 + 0.5 * q_2
+#         NOTE: For current implementation, the Feature also uses state[0] as the theta of swing leg
+#             See `VC_c` in `IOLinearCtrl` for detail
+#         Three state are added to the seven. The first is the about the stance leg and the second is about the swing leg, the third is the Tau
+#     """
+#     redStance, theta_plus, Labelmap = self.STEP_label
+#     leg_angle_mat = np.array([1,0.5]) # the q_1 + 0.5 q_2
+#     Mat = np.concatenate([
+#             np.concatenate([np.eye(7),np.zeros((6+7,7))],axis = 0),
+#             np.concatenate([np.zeros((7+3,7)), np.eye(7), np.zeros((3,7))],axis = 0)
+#     ],axis = 1)
+#     rMat = Mat.copy().T
+#     Mat[[7,8],2] = Mat[[17,18],9] = 1
+#     Mat[7,3:7] = Labelmap[:,:2] @ leg_angle_mat # stance toe
+#     Mat[8,3:7] = Labelmap[:,2:] @ leg_angle_mat # swing toe
+#     Mat[17,10:14] = Labelmap[:,:2] @ leg_angle_mat # stance toe
+#     Mat[18,10:14] = Labelmap[:,2:] @ leg_angle_mat # swing toe
+#     Mat[9,0] = Mat[19,7] = 1/self.stepLength # Tau
+#     return Mat, rMat

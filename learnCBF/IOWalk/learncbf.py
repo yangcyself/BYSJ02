@@ -31,8 +31,7 @@ def sampler(CBFs, mc, BalphaStd, Balpha = Balpha, CBFList = None):
     sample a lot of trajectories, stop when the CBF constraint cannot be satisfied
         return sampled trajectories
     """
-    # from ctrl.CBFWalker import CBF_WALKER_CTRL, CTRL
-    from ctrl.CBFRelabelingWalker import CBF_Relabeling_WALKER_CTRL as CBF_WALKER_CTRL, CTRL
+    from ctrl.CBFWalker import CBF_WALKER_CTRL, CTRL
     CTRL.restart()
 
     ct = CBF_WALKER_CTRL()
